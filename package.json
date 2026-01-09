@@ -1,0 +1,52 @@
+{
+  "name": "ai-english-studio",
+  "version": "2.0.0",
+  "description": "AI English Studio - 英语口语学习平台",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:frontend && npm run install:backend",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "start": "cd backend && npm start",
+    "test": "cd tests && npx playwright test",
+    "test:ui": "cd tests && npx playwright test --ui",
+    "test:headed": "cd tests && npx playwright test --headed",
+    "test:debug": "cd tests && npx playwright test --debug",
+    "test:report": "cd tests && npx playwright show-report",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "clean": "rm -rf */node_modules */dist */build .next out",
+    "docker:build": "docker build -t ai-english-studio .",
+    "docker:run": "docker-compose up -d"
+  },
+  "keywords": [
+    "english",
+    "learning",
+    "education",
+    "speech",
+    "pronunciation",
+    "react",
+    "express",
+    "typescript"
+  ],
+  "author": "AI English Studio Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

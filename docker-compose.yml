@@ -1,0 +1,55 @@
+version: "3.8"
+
+# AI English Studio - 前后端分离单容器部署
+# 使用新的优化项目结构
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /
+    container_name: ai-english-studio-v2
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # JWT配置
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # 数据库配置
+      DATA_DIR: /app/backend/database
+      UPLOAD_DIR: /app/backend/uploads
+      # 翻译服务配置 (可选)
+      BAIDU_APP_ID: ${BAIDU_APP_ID:-}
+      BAIDU_API_KEY: ${BAIDU_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # 语音评测配置 (可选)
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      TENCENT_SECRET_ID: ${TENCENT_SECRET_ID:-}
+      TENCENT_SECRET_KEY: ${TENCENT_SECRET_KEY:-}
+      # 性能配置
+      SQLITE_CACHE_SIZE: ${SQLITE_CACHE_SIZE:-64000}
+      SQLITE_MMAP_SIZE: ${SQLITE_MMAP_SIZE:-268435456}
+    volumes:
+      # SQLite 数据库
+      - ./backend/database:/app/backend/database
+      # 用户上传文件
+      - ./backend/uploads:/app/backend/uploads
+    ports:
+      - "${PORT:-3000}:3000"
+    networks:
+      - ai-english-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 30s
+      retries: 3
+
+networks:
+  ai-english-network:
+    name: ai-english-network-v2
+    driver: bridge
