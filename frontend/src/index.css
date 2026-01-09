@@ -1,0 +1,151 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. Glassmorphism theme inspired by aienglish.club */
+
+@layer base {
+  :root {
+    --background: 166 84% 93%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 166 84% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 330 80% 95%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 166 30% 90%;
+    --muted-foreground: 222 20% 40%;
+
+    --accent: 330 60% 92%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 166 30% 70%;
+    --input: 166 30% 80%;
+    --ring: 166 84% 40%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 166 84% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 166 30% 90%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 166 30% 70%;
+    --sidebar-ring: 166 84% 40%;
+
+    --chart-1: 166 84% 40%;
+    --chart-2: 330 70% 60%;
+    --chart-3: 200 70% 50%;
+    --chart-4: 40 80% 60%;
+    --chart-5: 280 60% 55%;
+
+    --sidebar: 0 0% 100%;
+
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+    --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-xs: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    --shadow-2xl: 0 35px 60px -15px rgb(0 0 0 / 0.3);
+
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 166 30% 95%;
+
+    --card: 222 47% 12%;
+    --card-foreground: 166 30% 95%;
+
+    --popover: 222 47% 12%;
+    --popover-foreground: 166 30% 95%;
+
+    --primary: 166 84% 50%;
+    --primary-foreground: 222 47% 8%;
+
+    --secondary: 330 40% 20%;
+    --secondary-foreground: 166 30% 95%;
+
+    --muted: 222 30% 20%;
+    --muted-foreground: 166 20% 60%;
+
+    --accent: 330 40% 25%;
+    --accent-foreground: 166 30% 95%;
+
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 30% 30%;
+    --input: 222 30% 30%;
+    --ring: 166 84% 50%;
+    
+    --sidebar-background: 222 47% 10%;
+    --sidebar-foreground: 166 30% 95%;
+    --sidebar-primary: 166 84% 50%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-accent: 222 30% 20%;
+    --sidebar-accent-foreground: 166 30% 95%;
+    --sidebar-border: 222 30% 30%;
+    --sidebar-ring: 166 84% 50%;
+    
+    --chart-1: 166 84% 50%;
+    --chart-2: 330 70% 50%;
+    --chart-3: 200 60% 45%;
+    --chart-4: 40 70% 50%;
+    --chart-5: 280 50% 50%;
+    
+    --sidebar: 222 47% 10%;
+    --radius: 1rem;
+  }
+}
+
+/* Glassmorphism utilities */
+@layer utilities {
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
+  }
+  
+  .glass-strong {
+    @apply bg-card/90 backdrop-blur-2xl border border-border/30 shadow-xl;
+  }
+  
+  .gradient-bg {
+    background: linear-gradient(135deg, hsl(166 84% 93%) 0%, hsl(330 80% 95%) 100%);
+  }
+  
+  .gradient-bg-dark {
+    background: linear-gradient(135deg, hsl(222 47% 8%) 0%, hsl(280 40% 12%) 100%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+}

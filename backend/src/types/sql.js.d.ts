@@ -1,0 +1,29 @@
+declare module 'sql.js' {
+    export interface SqlJsStatic {
+        Database: typeof Database;
+    }
+
+    export interface Database {
+        run(sql: string, params?: any[]): Database;
+        exec(sql: string): QueryExecResult[];
+        prepare(sql: string): Statement;
+        export(): Uint8Array;
+        close(): void;
+        getRowsModified(): number;
+    }
+
+    export interface Statement {
+        bind(params?: any[]): boolean;
+        step(): boolean;
+        getAsObject(): any;
+        free(): void;
+        reset(): void;
+    }
+
+    export interface QueryExecResult {
+        columns: string[];
+        values: any[][];
+    }
+
+    export default function initSqlJs(config?: any): Promise<SqlJsStatic>;
+}
