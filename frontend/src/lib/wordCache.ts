@@ -235,16 +235,22 @@ export const fetchFromApi = async (word: string) => {
     return null;
   })();
 
-  // 3. MyMemory API 作为备用翻译源
+  // 3. MyMemory API 作为备用翻译源 (通过后端代理避免 CORS)
   const myMemoryPromise = (async () => {
     try {
+      // 直接调用 MyMemory，如果 CORS 失败会捕获错误
       const res = await fetchWithTimeout(
         `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh-CN`,
         5000
       );
       const data = await res.json();
-      if (data.responseData?.translatedText) {
-        return { translation: data.responseData.translatedText };
+      if (data.responseData?.translatedText && data.responseStatus === 200) {
+        const translation = data.responseData.translatedText;
+        // 检查翻译是否有效（不是原词）
+        if (translation.toLowerCase() !== word.toLowerCase()) {
+          console.log(`MyMemory translation for "${word}": ${translation}`);
+          return { translation };
+        }
       }
     } catch (e) {
       console.warn('MyMemory API failed:', e);
@@ -252,11 +258,33 @@ export const fetchFromApi = async (word: string) => {
     return null;
   })();
 
+  // 4. Google Translate 非官方 API 作为第二备用 (免费，但不保证稳定)
+  const googleFreePromise = (async () => {
+    try {
+      const res = await fetchWithTimeout(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(word)}`,
+        5000
+      );
+      const data = await res.json();
+      if (data && data[0] && data[0][0] && data[0][0][0]) {
+        const translation = data[0][0][0];
+        if (translation.toLowerCase() !== word.toLowerCase()) {
+          console.log(`Google Free translation for "${word}": ${translation}`);
+          return { translation };
+        }
+      }
+    } catch (e) {
+      console.warn('Google Free API failed:', e);
+    }
+    return null;
+  })();
+
   // 等待所有 API 返回
-  const [freeDictResult, baiduResult, myMemoryResult] = await Promise.all([
+  const [freeDictResult, baiduResult, myMemoryResult, googleResult] = await Promise.all([
     freeDictPromise,
     baiduPromise,
     myMemoryPromise,
+    googleFreePromise,
   ]);
 
   // 合并结果
@@ -299,7 +327,12 @@ export const fetchFromApi = async (word: string) => {
     wordInfo.translation = myMemoryResult.translation;
   }
 
-  // 4. 关键：如果有翻译但没有 definitions，将翻译添加为 definition
+  // 4. Google Free 作为第二翻译备用
+  if (!wordInfo.translation && googleResult?.translation) {
+    wordInfo.translation = googleResult.translation;
+  }
+
+  // 5. 关键：如果有翻译但没有 definitions，将翻译添加为 definition
   if (wordInfo.translation && wordInfo.definitions.length === 0) {
     wordInfo.definitions.push({
       partOfSpeech: '',
@@ -308,7 +341,7 @@ export const fetchFromApi = async (word: string) => {
     });
   }
 
-  // 5. 确保中文翻译显示在 definitions 中
+  // 6. 确保中文翻译显示在 definitions 中
   if (wordInfo.translation) {
     const hasChinese = (text: string) => /[\u4e00-\u9fa5]/.test(text);
     const hasChineseDefinition = wordInfo.definitions.some(d => hasChinese(d.definition));
