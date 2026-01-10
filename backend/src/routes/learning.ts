@@ -207,7 +207,10 @@ router.get('/recent', authMiddleware, async (req: Request, res: Response) => {
         const limit = parseInt(req.query.limit as string) || 5;
 
         const recent = query(
-            `SELECT lp.*, v.title, v.thumbnail_url, v.duration
+            `SELECT lp.video_id, lp.last_position, lp.completed_sentences, lp.total_practice_time, lp.updated_at,
+                    v.id, v.title, v.description, v.video_url, v.thumbnail_url, 
+                    v.subtitles_en, v.subtitles_cn, v.duration, v.category_id, v.is_published as published,
+                    v.view_count, v.created_at
        FROM learning_progress lp
        JOIN videos v ON lp.video_id = v.id
        WHERE lp.user_id = ?

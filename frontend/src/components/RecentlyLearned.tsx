@@ -39,11 +39,21 @@ export const RecentlyLearned: React.FC<RecentlyLearnedProps> = ({
 
             if (recentData && recentData.length > 0) {
                 const enrichedRecords = recentData.map((record: any) => {
-                    const video = record.video || {
-                        id: record.video_id,
-                        title: record.video_title || '未知视频',
-                        thumbnail_url: record.thumbnail_url,
-                        duration: record.duration || 0
+                    // 后端现在返回扁平数据，需要重新构建 video 对象
+                    const video: Video = {
+                        id: record.video_id || record.id,
+                        title: record.title || '未知视频',
+                        description: record.description || '',
+                        video_url: record.video_url || '',
+                        thumbnail_url: record.thumbnail_url || '',
+                        subtitles_en: record.subtitles_en || '',
+                        subtitles_cn: record.subtitles_cn || '',
+                        duration: record.duration || 0,
+                        category_id: record.category_id || null,
+                        is_published: record.published ?? true,
+                        view_count: record.view_count || 0,
+                        created_at: record.created_at || '',
+                        updated_at: record.updated_at || '',
                     };
 
                     // 计算进度百分比
@@ -55,7 +65,7 @@ export const RecentlyLearned: React.FC<RecentlyLearnedProps> = ({
 
                     return {
                         video_id: record.video_id,
-                        video: video as Video,
+                        video: video,
                         last_position: record.last_position || 0,
                         total_practice_time: record.total_practice_time || 0,
                         updated_at: record.updated_at || new Date().toISOString(),
