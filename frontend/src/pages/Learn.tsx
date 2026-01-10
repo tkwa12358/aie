@@ -100,11 +100,29 @@ const Learn = () => {
 
     // 检查试用期（30天）
     const TRIAL_DAYS = 30;
+
+    // 验证 created_at 是否有效
+    if (!profile.created_at) {
+      console.log('[CanAccessVideo] No created_at, allowing access by default');
+      return true; // 没有创建日期时默认允许访问
+    }
+
     const registerDate = new Date(profile.created_at);
+
+    // 检查日期是否有效
+    if (isNaN(registerDate.getTime())) {
+      console.log('[CanAccessVideo] Invalid created_at:', profile.created_at, ', allowing access by default');
+      return true; // 无效日期时默认允许访问
+    }
+
     const daysSinceRegister = Math.floor(
       (Date.now() - registerDate.getTime()) / (1000 * 60 * 60 * 24)
     );
-    return daysSinceRegister < TRIAL_DAYS;
+
+    const inTrialPeriod = daysSinceRegister < TRIAL_DAYS;
+    console.log('[CanAccessVideo] Days since register:', daysSinceRegister, 'In trial:', inTrialPeriod);
+
+    return inTrialPeriod;
   }, [profile, isActivated]);
 
   useEffect(() => {

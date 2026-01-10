@@ -106,6 +106,18 @@ export const useLearningProgress = (videoId: string | null) => {
         completedSentences: progress?.completed_sentences || [],
       });
 
+      // 如果是新视频首次保存，更新视频观看统计
+      if (isNewVideoRef.current) {
+        try {
+          await learningApi.updateStatistics({
+            videosWatched: 1,
+          });
+          console.log('[LearningProgress] Updated videosWatched +1');
+        } catch (statsError) {
+          console.warn('[LearningProgress] Failed to update videosWatched:', statsError);
+        }
+      }
+
       // 更新本地状态
       setProgress(prev => ({
         ...prev,
