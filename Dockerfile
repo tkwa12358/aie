@@ -1,68 +1,112 @@
-# AI English Studio - 前后端分离单容器部署
+# AI English Studio - 生产环境 Docker 镜像
 # 包含: Node.js + SQLite + 前端静态文件 + 词库数据
 
-# 构建阶段 - 使用workspace结构
-FROM node:20-alpine AS builder
+# ============================================
+# 阶段1: 前端构建
+# ============================================
+FROM node:20-alpine AS frontend-builder
 
-WORKDIR /app
+WORKDIR /app/frontend
 
-# 安装编译依赖
-RUN apk add --no-cache python3 make g++
+# 复制前端依赖文件
+COPY frontend/package*.json ./
 
-# 复制workspace配置
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
-COPY backend/package*.json ./backend/
-
-# 安装所有依赖
+# 安装前端依赖（包含 devDependencies 用于构建）
 RUN npm install
 
-# 复制源码
-COPY frontend/ ./frontend/
-COPY backend/ ./backend/
+# 复制前端源码
+COPY frontend/ ./
 
 # 构建前端
 ARG VITE_API_URL=/
 ENV VITE_API_URL=$VITE_API_URL
-RUN npm run build:frontend
+RUN npm run build
+
+# ============================================
+# 阶段2: 后端构建
+# ============================================
+FROM node:20-alpine AS backend-builder
+
+WORKDIR /app
+
+# 安装编译依赖（用于 better-sqlite3）
+RUN apk add --no-cache python3 make g++
+
+# 复制后端依赖文件
+COPY backend/package*.json ./
+
+# 安装后端依赖
+RUN npm install
+
+# 复制后端源码
+COPY backend/ ./
 
 # 构建后端
-RUN npm run build:backend
+RUN npm run build
 
-# 最终运行镜像
+# ============================================
+# 阶段3: 最终运行镜像
+# ============================================
 FROM node:20-alpine
+
+LABEL maintainer="AI English Studio Team"
+LABEL version="2.0.0"
+LABEL description="AI English Studio - 智能英语学习平台"
 
 WORKDIR /app
 
 # 安装运行时依赖
-RUN apk add --no-cache wget
+RUN apk add --no-cache \
+    wget \
+    curl \
+    tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone
 
-# 复制后端构建产物
-COPY --from=builder /app/backend/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/backend/package.json ./
+# 创建非 root 用户
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nodejs -u 1001
+
+# 复制后端构建产物和依赖
+COPY --from=backend-builder /app/dist ./dist
+COPY --from=backend-builder /app/node_modules ./node_modules
+COPY --from=backend-builder /app/package.json ./
 
 # 复制前端构建产物
-COPY --from=builder /app/frontend/dist ./public
+COPY --from=frontend-builder /app/frontend/dist ./public
 
-# 创建必要目录
-RUN mkdir -p /app/backend/database /app/backend/uploads
+# 复制词库数据
+COPY backend/data/dictionary/merged ./data/dictionary/merged
+
+# 创建必要的目录结构
+RUN mkdir -p \
+    /app/database \
+    /app/uploads/videos \
+    /app/uploads/thumbnails \
+    /app/logs \
+    && chown -R nodejs:nodejs /app
 
 # 设置环境变量
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV DATA_DIR=/app/backend/database
-ENV UPLOAD_DIR=/app/backend/uploads
-ENV FRONTEND_DIR=/app/public
+ENV NODE_ENV=production \
+    PORT=3000 \
+    DATA_DIR=/app/database \
+    UPLOAD_DIR=/app/uploads \
+    DICTIONARY_DIR=/app/data/dictionary/merged \
+    FRONTEND_DIR=/app/public \
+    LOG_DIR=/app/logs \
+    TZ=Asia/Shanghai
+
+# 切换到非 root 用户
+USER nodejs
 
 # 持久化卷
-VOLUME ["/app/backend/database", "/app/backend/uploads"]
+VOLUME ["/app/database", "/app/uploads", "/app/logs"]
 
 # 暴露端口
 EXPOSE 3000
 
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # 启动应用

@@ -169,7 +169,21 @@ export const saveToDbCache = async (wordData: {
   }
 };
 
-// 从 API 获取单词信息
+// 带超时的 fetch
+const fetchWithTimeout = async (url: string, timeout = 5000): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+};
+
+// 从 API 获取单词信息 - 增强版：并行调用多 API + 结果聚合
 export const fetchFromApi = async (word: string) => {
   let wordInfo = {
     word,
@@ -178,101 +192,139 @@ export const fetchFromApi = async (word: string) => {
     definitions: [] as { partOfSpeech: string; definition: string; example?: string }[],
   };
 
-  try {
-    // 1. 尝试 Free Dictionary API (English Definitions & Phonetic)
+  // 1. Free Dictionary API (获取音标和英文释义) - 带超时
+  const freeDictPromise = (async () => {
     try {
-      const response = await fetch(
-        `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`
+      const response = await fetchWithTimeout(
+        `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`,
+        5000
       );
-
       if (response.ok) {
         const data = await response.json();
         const entry = data[0];
-        wordInfo.word = entry.word; // Use lemma if redirected (e.g. apples -> apple)
-        wordInfo.phonetic = entry.phonetic || entry.phonetics?.[0]?.text || '';
-        wordInfo.definitions = entry.meanings?.slice(0, 3).map((m: any) => ({
-          partOfSpeech: m.partOfSpeech,
-          definition: m.definitions?.[0]?.definition || '',
-          example: m.definitions?.[0]?.example || '', // Capture example
-        })) || [];
+        return {
+          word: entry.word,
+          phonetic: entry.phonetic || entry.phonetics?.[0]?.text || '',
+          definitions: entry.meanings?.slice(0, 3).map((m: any) => ({
+            partOfSpeech: m.partOfSpeech,
+            definition: m.definitions?.[0]?.definition || '',
+            example: m.definitions?.[0]?.example || '',
+          })) || [],
+        };
       }
     } catch (e) {
       console.warn('Free Dictionary API failed:', e);
     }
+    return null;
+  })();
 
-    // 2. 获取中文翻译 / 补全信息 (后端 API)
+  // 2. 百度翻译 API (获取中文翻译)
+  const baiduPromise = (async () => {
     try {
       const translationData = await translateApi.translate(word.toLowerCase(), 'en', 'zh');
-
-      if (translationData) {
-        // 优先使用 AI 返回的中文翻译
-        if (translationData.translation) {
-          wordInfo.translation = translationData.translation;
-        }
-        // 如果缺少音标，使用 AI 返回的
-        if (!wordInfo.phonetic && translationData.phonetic) {
-          wordInfo.phonetic = translationData.phonetic;
-        }
-        // 如果缺少定义，或者想要补充中文定义，这里我们可以合并或优先展示中文
-        if (translationData.definitions && Array.isArray(translationData.definitions)) {
-          try {
-            console.log('Backend returned definitions:', translationData.definitions);
-            const backendDefs = translationData.definitions
-              .map((def: any) => {
-                if (!def) return null;
-                if (typeof def === 'string') {
-                  return {
-                    partOfSpeech: translationData.partOfSpeech || 'unknown',
-                    definition: def,
-                    example: ''
-                  };
-                }
-                // Handle object format
-                return {
-                  partOfSpeech: def.partOfSpeech || 'unknown',
-                  definition: def.definition || '',
-                  example: def.example || ''
-                };
-              })
-              .filter((d: any) => d !== null); // Filter out nulls
-
-            // Deduplicate based on definition text
-            const existingDefs = new Set(wordInfo.definitions.map(d => d.definition));
-            const newDefs = backendDefs.filter((d: any) => d && !existingDefs.has(d.definition));
-
-            // Append unique backend definitions
-            wordInfo.definitions = [...wordInfo.definitions, ...newDefs];
-          } catch (err) {
-            console.error('Error processing backend definitions:', err);
-          }
-        }
+      if (translationData?.translation) {
+        return {
+          translation: translationData.translation,
+          phonetic: translationData.phonetic || '',
+          definitions: translationData.definitions || [],
+        };
       }
-    } catch (translationError) {
-      console.warn('Translation API failed:', translationError);
-      // 3. Fallback: MyMemory API (Free, no key) if AI fails
-      try {
-        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh-CN`);
-        const data = await res.json();
-        if (data.responseData?.translatedText) {
-          wordInfo.translation = data.responseData.translatedText;
-          if (wordInfo.definitions.length === 0) {
-            wordInfo.definitions.push({
-              partOfSpeech: 'unknown',
-              definition: data.responseData.translatedText
-            });
-          }
-        }
-      } catch (e) {
-        console.warn('MyMemory Fallback failed:', e);
-      }
+    } catch (e) {
+      console.warn('Baidu Translation API failed:', e);
     }
-
-    return wordInfo;
-  } catch (error) {
-    console.error('Error fetching word info:', error);
     return null;
+  })();
+
+  // 3. MyMemory API 作为备用翻译源
+  const myMemoryPromise = (async () => {
+    try {
+      const res = await fetchWithTimeout(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh-CN`,
+        5000
+      );
+      const data = await res.json();
+      if (data.responseData?.translatedText) {
+        return { translation: data.responseData.translatedText };
+      }
+    } catch (e) {
+      console.warn('MyMemory API failed:', e);
+    }
+    return null;
+  })();
+
+  // 等待所有 API 返回
+  const [freeDictResult, baiduResult, myMemoryResult] = await Promise.all([
+    freeDictPromise,
+    baiduPromise,
+    myMemoryPromise,
+  ]);
+
+  // 合并结果
+  // 1. Free Dictionary 提供音标和英文释义
+  if (freeDictResult) {
+    wordInfo.word = freeDictResult.word || word;
+    wordInfo.phonetic = freeDictResult.phonetic || '';
+    wordInfo.definitions = freeDictResult.definitions || [];
   }
+
+  // 2. 百度翻译提供中文翻译
+  if (baiduResult) {
+    wordInfo.translation = baiduResult.translation || '';
+    if (!wordInfo.phonetic && baiduResult.phonetic) {
+      wordInfo.phonetic = baiduResult.phonetic;
+    }
+    // 合并百度返回的 definitions
+    if (baiduResult.definitions && Array.isArray(baiduResult.definitions)) {
+      const backendDefs = baiduResult.definitions
+        .map((def: any) => {
+          if (!def) return null;
+          if (typeof def === 'string') {
+            return { partOfSpeech: '', definition: def, example: '' };
+          }
+          return {
+            partOfSpeech: def.partOfSpeech || '',
+            definition: def.definition || '',
+            example: def.example || '',
+          };
+        })
+        .filter((d: any) => d !== null);
+      const existingDefs = new Set(wordInfo.definitions.map(d => d.definition));
+      const newDefs = backendDefs.filter((d: any) => d && !existingDefs.has(d.definition));
+      wordInfo.definitions = [...wordInfo.definitions, ...newDefs];
+    }
+  }
+
+  // 3. MyMemory 作为翻译备用
+  if (!wordInfo.translation && myMemoryResult?.translation) {
+    wordInfo.translation = myMemoryResult.translation;
+  }
+
+  // 4. 关键：如果有翻译但没有 definitions，将翻译添加为 definition
+  if (wordInfo.translation && wordInfo.definitions.length === 0) {
+    wordInfo.definitions.push({
+      partOfSpeech: '',
+      definition: wordInfo.translation,
+      example: '',
+    });
+  }
+
+  // 5. 确保中文翻译显示在 definitions 中
+  if (wordInfo.translation) {
+    const hasChinese = (text: string) => /[\u4e00-\u9fa5]/.test(text);
+    const hasChineseDefinition = wordInfo.definitions.some(d => hasChinese(d.definition));
+
+    if (!hasChineseDefinition) {
+      wordInfo.definitions.unshift({
+        partOfSpeech: '',
+        definition: wordInfo.translation,
+        example: '',
+      });
+    }
+  }
+
+  return wordInfo;
 };
+
 
 // 主查询函数：本地缓存 -> 数据库缓存 -> API
 export const lookupWord = async (word: string) => {

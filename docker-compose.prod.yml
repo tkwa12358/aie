@@ -1,0 +1,88 @@
+version: "3.8"
+
+# AI English Studio - 生产环境 Docker Compose 配置
+# 使用方法: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /
+    image: ai-english-studio:latest
+    container_name: ai-english-studio
+    restart: always
+    environment:
+      # 运行环境
+      NODE_ENV: production
+      PORT: 3000
+      TZ: Asia/Shanghai
+
+      # JWT 配置（必须修改）
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+
+      # 数据目录配置
+      DATA_DIR: /app/database
+      UPLOAD_DIR: /app/uploads
+      DICTIONARY_DIR: /app/data/dictionary/merged
+      LOG_DIR: /app/logs
+
+      # 翻译服务配置（可选）
+      BAIDU_APP_ID: ${BAIDU_APP_ID:-}
+      BAIDU_API_KEY: ${BAIDU_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+      # 语音评测配置（可选）
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-eastasia}
+      TENCENT_SECRET_ID: ${TENCENT_SECRET_ID:-}
+      TENCENT_SECRET_KEY: ${TENCENT_SECRET_KEY:-}
+
+      # 数据库性能配置
+      SQLITE_CACHE_SIZE: ${SQLITE_CACHE_SIZE:-64000}
+      SQLITE_MMAP_SIZE: ${SQLITE_MMAP_SIZE:-268435456}
+
+      # 日志级别
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+    volumes:
+      # 数据持久化
+      - ai-english-data:/app/database
+      - ai-english-uploads:/app/uploads
+      - ai-english-logs:/app/logs
+
+    ports:
+      - "${PORT:-3000}:3000"
+
+    networks:
+      - ai-english-network
+
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+# 命名卷 - 数据持久化
+volumes:
+  ai-english-data:
+    name: ai-english-data
+  ai-english-uploads:
+    name: ai-english-uploads
+  ai-english-logs:
+    name: ai-english-logs
+
+# 网络配置
+networks:
+  ai-english-network:
+    name: ai-english-network
+    driver: bridge

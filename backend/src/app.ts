@@ -42,9 +42,16 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // 静态文件服务 - 上传的视频等
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+const videosDir = path.join(uploadDir, 'videos');
+const thumbnailsDir = path.join(uploadDir, 'thumbnails');
+
+// 确保上传目录和子目录存在
+[uploadDir, videosDir, thumbnailsDir].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`📁 Created directory: ${dir}`);
+    }
+});
 app.use('/uploads', express.static(path.resolve(uploadDir)));
 
 // 静态文件服务 - 前端文件

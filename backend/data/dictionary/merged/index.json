@@ -1,0 +1,86 @@
+[
+  {
+    "id": "cet4",
+    "name": "CET-4 大学英语四级",
+    "description": "大学英语四级核心词汇",
+    "wordCount": 4544
+  },
+  {
+    "id": "cet6",
+    "name": "CET-6 大学英语六级",
+    "description": "大学英语六级核心词汇",
+    "wordCount": 3991
+  },
+  {
+    "id": "kaoyan",
+    "name": "考研英语",
+    "description": "考研英语核心词汇",
+    "wordCount": 5047
+  },
+  {
+    "id": "toefl",
+    "name": "TOEFL 托福",
+    "description": "托福考试核心词汇",
+    "wordCount": 10367
+  },
+  {
+    "id": "ielts",
+    "name": "IELTS 雅思",
+    "description": "雅思考试核心词汇",
+    "wordCount": 5275
+  },
+  {
+    "id": "gre",
+    "name": "GRE",
+    "description": "GRE考试核心词汇",
+    "wordCount": 9984
+  },
+  {
+    "id": "gmat",
+    "name": "GMAT",
+    "description": "GMAT考试核心词汇",
+    "wordCount": 3312
+  },
+  {
+    "id": "sat",
+    "name": "SAT",
+    "description": "SAT考试核心词汇",
+    "wordCount": 4464
+  },
+  {
+    "id": "bec",
+    "name": "BEC 商务英语",
+    "description": "商务英语证书考试词汇",
+    "wordCount": 2825
+  },
+  {
+    "id": "level4",
+    "name": "专四",
+    "description": "英语专业四级词汇",
+    "wordCount": 4340
+  },
+  {
+    "id": "level8",
+    "name": "专八",
+    "description": "英语专业八级词汇",
+    "wordCount": 12410
+  },
+  {
+    "id": "gaozhong",
+    "name": "高中英语",
+    "description": "高中英语词汇（含人教版、北师大版）",
+    "wordCount": 6555
+  },
+  {
+    "id": "chuzhong",
+    "name": "初中英语",
+    "description": "初中英语词汇（含人教版、外研社版）",
+    "wordCount": 3119
+  },
+  {
+    "id": "xiaoxue",
+    "name": "小学英语",
+    "description": "小学英语词汇（人教版3-6年级）",
+    "wordCount": 819
+  }
+]

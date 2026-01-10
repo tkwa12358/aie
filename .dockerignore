@@ -1,0 +1,65 @@
+# macOS 扩展属性文件（解决 Docker 构建权限问题）
+._*
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Git
+.git
+.gitignore
+
+# IDE/编辑器
+.vscode
+.idea
+*.swp
+*.swo
+
+# 根目录的 node_modules（子目录的会在 Docker 中重新安装）
+/node_modules
+
+# 测试
+tests
+coverage
+.nyc_output
+playwright-report
+test-results
+
+# 文档和脚本（不需要进入镜像）
+docs
+scripts
+CHANGELOG.md
+LICENSE
+
+# 环境配置（生产环境通过环境变量配置）
+.env
+.env.*
+!.env.example
+
+# 日志
+logs
+*.log
+
+# 数据库文件（生产环境使用卷挂载）
+*.db
+*.sqlite
+*.sqlite3
+backend/database
+
+# 上传文件（生产环境使用卷挂载）
+backend/uploads
+
+# 临时文件
+tmp
+temp
+*.tmp
+*.bak
+*.backup
+
+# Docker 配置文件本身
+docker-compose*.yml
+
+# JSON 词库源文件（词库在 backend/data 中）
+json-full
+
+# Deploy 空目录
+deploy
