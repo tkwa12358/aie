@@ -244,7 +244,7 @@ wait_for_service() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -s http://localhost:${PORT:-3000}/api/health > /dev/null 2>&1; then
+        if curl -s http://localhost:${PORT:-3000}/health > /dev/null 2>&1; then
             log_success "服务已就绪"
             return 0
         fi
@@ -262,7 +262,7 @@ wait_for_service() {
 # 显示访问信息
 show_access_info() {
     local port=${PORT:-3000}
-    local ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+    local ip=$(hostname -I 2>/dev/null | awk '{print $1}' || ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d'/' -f1 || echo "localhost")
 
     echo ""
     echo "============================================"

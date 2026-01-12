@@ -65,6 +65,11 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API 健康检查端点 (保持一致性)
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // API 路由 - 所有 API 使用 /api 前缀
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);

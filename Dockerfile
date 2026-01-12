@@ -29,8 +29,7 @@ FROM node:20-alpine AS backend-builder
 
 WORKDIR /app
 
-# 安装编译依赖（用于 better-sqlite3）
-RUN apk add --no-cache python3 make g++
+# sql.js 是纯 JavaScript 实现，无需编译依赖
 
 # 复制后端依赖文件
 COPY backend/package*.json ./
@@ -107,7 +106,7 @@ EXPOSE 3000
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # 启动应用
 CMD ["node", "dist/app.js"]
