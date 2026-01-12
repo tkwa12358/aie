@@ -32,9 +32,38 @@ AI English Studio 是一个专为英语口语学习设计的在线学习平台�
 
 ## 快速开始
 
+### 一键部署（推荐）
+
+在 Linux 服务器上执行以下命令即可完成全部安装部署：
+
+```bash
+# 使用 curl
+curl -fsSL https://raw.githubusercontent.com/tkwa12358/aie/main/install.sh | sudo bash
+
+# 或使用 wget
+wget -qO- https://raw.githubusercontent.com/tkwa12358/aie/main/install.sh | sudo bash
+```
+
+安装脚本会自动：
+- 检测操作系统（支持 Ubuntu/Debian/CentOS/RHEL 等）
+- 安装 Docker 和 Docker Compose
+- 克隆项目代码到 `/opt/ai-english-studio`
+- 生成安全的 JWT 密钥和环境配置
+- 构建并启动 Docker 容器
+- 配置防火墙规则
+
+安装完成后访问 `http://服务器IP:3000`，默认管理员账号：
+- 用户名: `admin@163.com`
+- 密码: `admin@163.com`
+
+**卸载：**
+```bash
+cd /opt/ai-english-studio && sudo ./install.sh --uninstall
+```
+
 ### 前提条件
-- Node.js 20+
-- Docker (可选)
+- Node.js 20+（仅本地开发需要）
+- Docker（生产部署需要）
 
 ### 本地开发
 
