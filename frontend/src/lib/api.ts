@@ -8,7 +8,8 @@ function getApiBaseUrl(): string {
     // 注意：'/' 表示同源请求，不需要添加 /api 前缀
     if (envUrl && envUrl !== 'auto') {
         // 如果是 '/'，返回空字符串表示相对路径
-        return envUrl === '/' ? '' : envUrl;
+        // 其他情况去掉末尾的 '/'，避免拼接时出现 '//'。
+        return envUrl === '/' ? '' : envUrl.replace(/\/+$/, '');
     }
 
     // 自动检测：使用当前访问的主机地址

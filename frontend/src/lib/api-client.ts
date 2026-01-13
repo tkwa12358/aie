@@ -630,10 +630,26 @@ export const getStorageUrl = (url: string | null | undefined): string => {
     if (!url) return '';
 
     const apiUrl = getActiveApiUrl();
+    const storageBaseUrl = apiUrl.replace(/\/api\/?$/, '');
+
+    const joinBaseUrl = (base: string, path: string) => {
+        if (!base) return path;
+        if (base.endsWith('/') && path.startsWith('/')) {
+            return `${base.slice(0, -1)}${path}`;
+        }
+        if (!base.endsWith('/') && !path.startsWith('/')) {
+            return `${base}/${path}`;
+        }
+        return `${base}${path}`;
+    };
 
     // 如果是相对路径，直接拼接 API URL
+    if (url.startsWith('/api/uploads/')) {
+        return joinBaseUrl(storageBaseUrl, url.replace(/^\/api/, ''));
+    }
+
     if (url.startsWith('/uploads/')) {
-        return `${apiUrl}${url}`;
+        return joinBaseUrl(storageBaseUrl, url);
     }
 
     // 如果是完整 URL，直接返回
@@ -642,7 +658,7 @@ export const getStorageUrl = (url: string | null | undefined): string => {
     }
 
     // 其他情况，假设是文件名，拼接完整路径
-    return `${apiUrl}/uploads/${url}`;
+    return joinBaseUrl(storageBaseUrl, `/uploads/${url.replace(/^\/+/, '')}`);
 };
 
 /**

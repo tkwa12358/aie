@@ -30,7 +30,7 @@ import {
 import { Plus, Pencil, Trash2, Loader2, CheckCircle2, ImagePlus, RefreshCw, FolderInput, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
-import { videosApi, categoriesApi, Video, VideoCategory, getActiveApiUrl } from '@/lib/api-client';
+import { videosApi, categoriesApi, Video, VideoCategory, getStorageUrl } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
 
@@ -419,16 +419,15 @@ const AdminVideos: React.FC = () => {
       }
 
       setThumbnailProgress({ current: 0, total: videosWithoutThumb.length, success: 0 });
-      const token = localStorage.getItem('token');
-
       for (let i = 0; i < videosWithoutThumb.length; i++) {
         const video = videosWithoutThumb[i];
         setThumbnailProgress(prev => ({ ...prev, current: i + 1 }));
 
         try {
-          // 2. 从视频 URL 提取文件名
-          const filename = video.video_url.split('/').pop();
-          const videoUrl = `${getActiveApiUrl()}/videos/file/${filename}?token=${token}`;
+          const videoUrl = getStorageUrl(video.video_url);
+          if (!videoUrl) {
+            throw new Error('视频地址为空，无法生成封面');
+          }
 
           // 3. 生成封面
           const thumbBlob = await generateThumbnailFromUrl(videoUrl);
