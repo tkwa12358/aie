@@ -93,6 +93,24 @@ chmod +x scripts/deploy.sh
 ./scripts/deploy.sh --build
 ```
 
+### 手动 Docker 部署命令
+
+> ⚠️ **重要**: 生产环境部署时，请使用 `-f docker-compose.yml` 明确指定配置文件，避免 `docker-compose.override.yml` 开发配置覆盖生产配置。
+
+```bash
+# 生产环境部署（推荐）
+docker compose -f docker-compose.yml up -d --build
+
+# 查看日志
+docker compose -f docker-compose.yml logs -f
+
+# 停止服务
+docker compose -f docker-compose.yml down
+
+# 重启服务
+docker compose -f docker-compose.yml restart
+```
+
 ---
 
 ## 高级配置
@@ -182,7 +200,15 @@ PORT=8080
 server {
     listen 80;
     server_name your-domain.com;
-    
+
+    # 增大上传文件大小限制（支持大视频文件）
+    client_max_body_size 500M;
+
+    # 增大超时时间（支持大文件上传）
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+    client_body_timeout 300s;
+
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -259,6 +285,13 @@ lsof -i :3000
 # 确保当前用户在 docker 组中
 sudo usermod -aG docker $USER
 # 然后重新登录
+```
+
+**Q: 挂载目录权限问题（容器无法写入数据）**
+```bash
+# 容器内 node 用户的 UID 是 1001，需要设置正确的目录权限
+sudo chown -R 1001:1001 backend/database
+sudo chown -R 1001:1001 backend/uploads
 ```
 
 **Q: 镜像构建失败**

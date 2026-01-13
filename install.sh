@@ -244,6 +244,11 @@ create_directories() {
     mkdir -p backend/uploads/thumbnails
     mkdir -p logs
 
+    # 设置正确的目录权限（容器内 node 用户的 UID 是 1001）
+    log_info "设置目录权限..."
+    chown -R 1001:1001 backend/database
+    chown -R 1001:1001 backend/uploads
+
     log_success "目录结构已创建"
 }
 
@@ -251,10 +256,11 @@ create_directories() {
 build_image() {
     log_step "构建 Docker 镜像（这可能需要几分钟）..."
 
+    # 使用 -f docker-compose.yml 明确指定配置文件，避免 docker-compose.override.yml 开发配置覆盖
     if docker compose version &> /dev/null; then
-        docker compose -f docker-compose.prod.yml build --no-cache
+        docker compose -f docker-compose.yml build --no-cache
     else
-        docker-compose -f docker-compose.prod.yml build --no-cache
+        docker-compose -f docker-compose.yml build --no-cache
     fi
 
     log_success "镜像构建完成"
@@ -268,17 +274,17 @@ start_service() {
     if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
         log_info "停止旧容器..."
         if docker compose version &> /dev/null; then
-            docker compose -f docker-compose.prod.yml down > /dev/null 2>&1 || true
+            docker compose -f docker-compose.yml down > /dev/null 2>&1 || true
         else
-            docker-compose -f docker-compose.prod.yml down > /dev/null 2>&1 || true
+            docker-compose -f docker-compose.yml down > /dev/null 2>&1 || true
         fi
     fi
 
-    # 启动新容器
+    # 启动新容器（使用 -f docker-compose.yml 避免开发配置覆盖）
     if docker compose version &> /dev/null; then
-        docker compose -f docker-compose.prod.yml up -d
+        docker compose -f docker-compose.yml up -d
     else
-        docker-compose -f docker-compose.prod.yml up -d
+        docker-compose -f docker-compose.yml up -d
     fi
 
     log_success "服务已启动"
@@ -371,9 +377,9 @@ uninstall() {
 
     # 停止并删除容器
     if docker compose version &> /dev/null; then
-        docker compose -f docker-compose.prod.yml down -v 2>/dev/null || true
+        docker compose -f docker-compose.yml down -v 2>/dev/null || true
     else
-        docker-compose -f docker-compose.prod.yml down -v 2>/dev/null || true
+        docker-compose -f docker-compose.yml down -v 2>/dev/null || true
     fi
 
     # 删除镜像
