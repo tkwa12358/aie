@@ -1,6 +1,4 @@
 # AI English Studio - 生产环境 Docker Compose 配置
-
-# AI English Studio - 生产环境 Docker Compose 配置
 # 使用方法: docker-compose -f docker-compose.prod.yml up -d
 
 services:
@@ -11,7 +9,7 @@ services:
       args:
         VITE_API_URL: /
     image: ai-english-studio:latest
-    container_name: ai-english-studio
+    container_name: ai-english-studio-v2
     restart: always
     environment:
       # 运行环境
@@ -23,9 +21,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
 
-      # 数据目录配置
-      DATA_DIR: /app/database
-      UPLOAD_DIR: /app/uploads
+      # 数据目录配置（与 Dockerfile 和 docker-compose.yml 保持一致）
+      DATA_DIR: /app/backend/database
+      UPLOAD_DIR: /app/backend/uploads
       DICTIONARY_DIR: /app/data/dictionary/merged
       LOG_DIR: /app/logs
 
@@ -48,10 +46,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
     volumes:
-      # 数据持久化
-      - ai-english-data:/app/database
-      - ai-english-uploads:/app/uploads
-      - ai-english-logs:/app/logs
+      # 数据持久化 - 使用绑定挂载，方便管理和备份
+      - ./backend/database:/app/backend/database
+      - ./backend/uploads:/app/backend/uploads
+      - ./logs:/app/logs
 
     ports:
       - "${PORT:-3000}:3000"
@@ -72,17 +70,8 @@ services:
         max-size: "100m"
         max-file: "5"
 
-# 命名卷 - 数据持久化
-volumes:
-  ai-english-data:
-    name: ai-english-data
-  ai-english-uploads:
-    name: ai-english-uploads
-  ai-english-logs:
-    name: ai-english-logs
-
 # 网络配置
 networks:
   ai-english-network:
-    name: ai-english-network
+    name: ai-english-network-v2
     driver: bridge

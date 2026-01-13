@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="AI English Studio"
-CONTAINER_NAME="ai-english-studio"
+CONTAINER_NAME="ai-english-studio-v2"
 COMPOSE_FILE="docker-compose.prod.yml"
 
 # 获取脚本所在目录的父目录（项目根目录）
@@ -147,10 +147,25 @@ create_directories() {
     mkdir -p backend/uploads/import
     mkdir -p logs
 
-    # 设置正确的目录权限（容器内 node 用户的 UID 是 1001）
+    # 设置正确的目录权限（容器内 nodejs 用户的 UID 是 1001）
+    # 无论是否 root 用户都尝试设置权限
+    log_info "设置目录权限..."
     if [ "$(id -u)" = "0" ]; then
         chown -R 1001:1001 backend/database
         chown -R 1001:1001 backend/uploads
+        chown -R 1001:1001 logs
+        log_success "目录权限已设置 (UID 1001)"
+    else
+        # 非 root 用户，尝试使用 sudo
+        if command -v sudo &> /dev/null; then
+            log_info "使用 sudo 设置目录权限..."
+            sudo chown -R 1001:1001 backend/database 2>/dev/null || log_warn "无法设置 backend/database 权限"
+            sudo chown -R 1001:1001 backend/uploads 2>/dev/null || log_warn "无法设置 backend/uploads 权限"
+            sudo chown -R 1001:1001 logs 2>/dev/null || log_warn "无法设置 logs 权限"
+        else
+            log_warn "非 root 用户且无 sudo，跳过权限设置"
+            log_warn "如遇权限问题，请手动执行: sudo chown -R 1001:1001 backend/database backend/uploads logs"
+        fi
     fi
 
     log_success "目录结构已创建"

@@ -376,3 +376,100 @@ docker compose -f docker-compose.yml up -d --build
 - **版本**: 2.0.0
 - **技术栈**: Node.js + Express + React + SQLite
 - **容器**: Docker + Alpine Linux
+
+---
+
+## 常见问题
+
+### 批量导入扫描不到视频文件
+
+**问题描述：** 使用批量导入功能扫描文件时，提示无法找到视频文件。
+
+**原因：** 上传到 `backend/uploads/import/` 目录的文件所有权为 `root`，而容器内应用以 `nodejs` 用户 (UID 1001) 运行，导致无权限读取。
+
+**解决方案：**
+```bash
+sudo chown -R 1001:1001 /opt/ai-english-studio/backend/uploads/import/
+```
+
+**预防措施：** 上传新文件到 import 目录后，记得修改文件所有权：
+```bash
+sudo chown -R 1001:1001 backend/uploads/import/
+```
+
+### 容器配置与 docker-compose.yml 不一致
+
+**问题描述：** 部署后发现容器名、环境变量、卷映射与配置文件不一致。
+
+**原因：** 可能使用了旧版本的 `docker-compose.prod.yml` 或存在旧容器未清理。
+
+**解决方案：**
+```bash
+# 1. 停止并删除旧容器
+docker compose -f docker-compose.prod.yml down
+
+# 2. 删除旧镜像（可选）
+docker rmi ai-english-studio:latest
+
+# 3. 拉取最新代码
+git pull origin main
+
+# 4. 重新部署
+./scripts/deploy.sh --build
+```
+
+### 数据存储在 Docker 命名卷而非绑定挂载
+
+**问题描述：** 数据存储在 `/var/lib/docker/volumes/` 而非项目目录的 `backend/` 下。
+
+**原因：** 使用了旧版 `docker-compose.prod.yml`，它配置了命名卷而非绑定挂载。
+
+**解决方案：**
+1. 备份旧数据：
+```bash
+# 查找旧数据位置
+docker volume inspect ai-english-data
+docker volume inspect ai-english-uploads
+
+# 复制数据到项目目录
+sudo cp -r /var/lib/docker/volumes/ai-english-data/_data/* backend/database/
+sudo cp -r /var/lib/docker/volumes/ai-english-uploads/_data/* backend/uploads/
+sudo chown -R 1001:1001 backend/database backend/uploads
+```
+
+2. 使用新配置重新部署：
+```bash
+docker compose -f docker-compose.prod.yml down
+git pull origin main
+./scripts/deploy.sh --build
+```
+
+### 权限问题导致应用无法写入数据
+
+**问题描述：** 应用启动后无法写入数据库或上传文件。
+
+**原因：** 目录权限不正确，容器内 nodejs 用户 (UID 1001) 无写入权限。
+
+**解决方案：**
+```bash
+sudo chown -R 1001:1001 backend/database backend/uploads logs
+```
+
+### 如何验证配置是否正确
+
+部署后可以运行以下命令验证：
+```bash
+# 检查容器名
+docker ps --format "table {{.Names}}\t{{.Status}}"
+# 应显示: ai-english-studio-v2
+
+# 检查环境变量
+docker exec ai-english-studio-v2 env | grep -E "(DATA_DIR|UPLOAD_DIR)"
+# 应显示:
+# DATA_DIR=/app/backend/database
+# UPLOAD_DIR=/app/backend/uploads
+
+# 检查卷挂载
+docker inspect ai-english-studio-v2 --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+# 应显示绑定挂载到 ./backend/database 和 ./backend/uploads
+```

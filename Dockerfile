@@ -82,6 +82,7 @@ RUN mkdir -p \
     /app/backend/database \
     /app/backend/uploads/videos \
     /app/backend/uploads/thumbnails \
+    /app/backend/uploads/import \
     /app/logs \
     && chown -R nodejs:nodejs /app
 
