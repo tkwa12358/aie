@@ -332,7 +332,11 @@ cp -r backend/uploads backend/uploads.bak
 # 3. 拉取最新代码
 git pull origin main
 
-# 4. 重新构建并启动（数据会保留）
+# 4. 创建新版本可能需要的目录（如批量导入目录）
+mkdir -p backend/uploads/import
+sudo chown -R 1001:1001 backend/uploads/import
+
+# 5. 重新构建并启动（数据会保留）
 docker compose -f docker-compose.yml up -d --build
 ```
 
@@ -360,7 +364,8 @@ docker compose -f docker-compose.yml up -d --build
 │   │   └── ai_english.db     # SQLite 数据库（所有用户数据）
 │   └── uploads/
 │       ├── videos/           # 上传的视频文件
-│       └── thumbnails/       # 视频缩略图
+│       ├── thumbnails/       # 视频缩略图
+│       └── import/           # 批量导入目录（按分类创建子目录）
 ```
 
 ---
