@@ -9,6 +9,15 @@ import fs from 'fs';
 
 const router = Router();
 
+// Token 查询参数处理中间件（支持通过 URL 参数传递 token）
+const tokenQueryMiddleware = (req: Request, res: Response, next: Function) => {
+    const token = req.query.token as string;
+    if (token && !req.headers.authorization) {
+        req.headers.authorization = `Bearer ${token}`;
+    }
+    next();
+};
+
 // 文件上传配置
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 const storage = multer.diskStorage({
@@ -405,7 +414,7 @@ router.get('/batch/scan', authMiddleware, adminMiddleware, async (req: Request, 
 /**
  * GET /videos/batch/file/* - 获取待导入的视频文件
  */
-router.get('/batch/file/*', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+router.get('/batch/file/*', tokenQueryMiddleware, authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
     try {
         const filePath = req.params[0];
         const fullPath = path.join(importDir, filePath);
@@ -556,6 +565,45 @@ router.delete('/batch/file/*', authMiddleware, adminMiddleware, async (req: Requ
     } catch (error) {
         console.error('Delete batch file error:', error);
         res.status(500).json({ error: '删除文件失败' });
+    }
+});
+
+/**
+ * GET /videos/file/:filename - 获取已导入的视频文件（用于封面生成）
+ */
+router.get('/file/:filename', tokenQueryMiddleware, authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const { filename } = req.params;
+        const fullPath = path.join(uploadDir, 'videos', filename);
+
+        // 安全检查：确保路径在 videos 目录内
+        if (!fullPath.startsWith(path.join(uploadDir, 'videos'))) {
+            return res.status(403).json({ error: '非法路径' });
+        }
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ error: '文件不存在' });
+        }
+
+        res.sendFile(fullPath);
+    } catch (error) {
+        console.error('Get video file error:', error);
+        res.status(500).json({ error: '获取文件失败' });
+    }
+});
+
+/**
+ * GET /videos/without-thumbnail - 获取所有没有封面的视频
+ */
+router.get('/without-thumbnail', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const videos = query<Video>(
+            'SELECT * FROM videos WHERE thumbnail_url IS NULL OR thumbnail_url = ""'
+        );
+        res.json(videos);
+    } catch (error) {
+        console.error('Get videos without thumbnail error:', error);
+        res.status(500).json({ error: '查询失败' });
     }
 });
 

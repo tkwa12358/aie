@@ -209,6 +209,10 @@ const AdminVideos: React.FC = () => {
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   const [batchCurrentFile, setBatchCurrentFile] = useState('');
 
+  // 批量生成封面状态
+  const [generatingThumbnails, setGeneratingThumbnails] = useState(false);
+  const [thumbnailProgress, setThumbnailProgress] = useState({ current: 0, total: 0, success: 0 });
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -348,8 +352,9 @@ const AdminVideos: React.FC = () => {
       setBatchProgress(prev => ({ ...prev, current: i + 1 }));
 
       try {
-        // 1. 生成封面
-        const videoUrl = `${getActiveApiUrl()}/videos/batch/file/${file.path}`;
+        // 1. 生成封面（带 token 参数支持认证）
+        const token = localStorage.getItem('token');
+        const videoUrl = `${getActiveApiUrl()}/videos/batch/file/${encodeURIComponent(file.path)}?token=${token}`;
         let thumbnailUrl: string | undefined;
         try {
           const thumbBlob = await generateThumbnailFromUrl(videoUrl);
@@ -402,6 +407,54 @@ const AdminVideos: React.FC = () => {
     handleBatchScan();
   };
 
+  // 批量生成封面
+  const handleBatchGenerateThumbnails = async () => {
+    setGeneratingThumbnails(true);
+    try {
+      // 1. 获取无封面视频列表
+      const videosWithoutThumb = await videosApi.getVideosWithoutThumbnail();
+      if (videosWithoutThumb.length === 0) {
+        toast({ title: '没有需要生成封面的视频' });
+        return;
+      }
+
+      setThumbnailProgress({ current: 0, total: videosWithoutThumb.length, success: 0 });
+      const token = localStorage.getItem('token');
+
+      for (let i = 0; i < videosWithoutThumb.length; i++) {
+        const video = videosWithoutThumb[i];
+        setThumbnailProgress(prev => ({ ...prev, current: i + 1 }));
+
+        try {
+          // 2. 从视频 URL 提取文件名
+          const filename = video.video_url.split('/').pop();
+          const videoUrl = `${getActiveApiUrl()}/videos/file/${filename}?token=${token}`;
+
+          // 3. 生成封面
+          const thumbBlob = await generateThumbnailFromUrl(videoUrl);
+          const thumbResult = await videosApi.uploadThumbnail(thumbBlob);
+
+          // 4. 更新视频记录
+          await videosApi.updateVideo(video.id, { thumbnailUrl: thumbResult.thumbnailUrl });
+
+          setThumbnailProgress(prev => ({ ...prev, success: prev.success + 1 }));
+        } catch (e) {
+          console.warn('生成封面失败:', video.title, e);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
+      toast({
+        title: '批量生成完成',
+        description: `成功 ${thumbnailProgress.success} 个，共 ${videosWithoutThumb.length} 个`
+      });
+    } catch (error: any) {
+      toast({ title: '批量生成失败', description: error.message, variant: 'destructive' });
+    } finally {
+      setGeneratingThumbnails(false);
+    }
+  };
+
   const handleEdit = (video: Video) => {
     setEditingVideo(video);
     setFormData({
@@ -436,6 +489,25 @@ const AdminVideos: React.FC = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">视频管理</h1>
           <div className="flex gap-2">
+            {/* 批量生成封面按钮 */}
+            <Button
+              variant="outline"
+              onClick={handleBatchGenerateThumbnails}
+              disabled={generatingThumbnails}
+            >
+              {generatingThumbnails ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  生成中 {thumbnailProgress.current}/{thumbnailProgress.total}
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="h-4 w-4 mr-2" />
+                  批量生成封面
+                </>
+              )}
+            </Button>
+
             {/* 批量导入按钮 */}
             <Dialog open={isBatchOpen} onOpenChange={(open) => {
               setIsBatchOpen(open);

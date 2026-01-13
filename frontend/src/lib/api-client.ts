@@ -312,6 +312,12 @@ export const videosApi = {
 
     getBatchFileUrl(filePath: string): string {
         return `${getActiveApiUrl()}/videos/batch/file/${filePath}`;
+    },
+
+    // 获取没有封面的视频列表
+    async getVideosWithoutThumbnail(): Promise<Video[]> {
+        const { data } = await api.get('/videos/without-thumbnail');
+        return data;
     }
 };
 
