@@ -144,7 +144,14 @@ create_directories() {
     mkdir -p backend/database
     mkdir -p backend/uploads/videos
     mkdir -p backend/uploads/thumbnails
+    mkdir -p backend/uploads/import
     mkdir -p logs
+
+    # 设置正确的目录权限（容器内 node 用户的 UID 是 1001）
+    if [ "$(id -u)" = "0" ]; then
+        chown -R 1001:1001 backend/database
+        chown -R 1001:1001 backend/uploads
+    fi
 
     log_success "目录结构已创建"
 }
