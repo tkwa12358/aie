@@ -257,13 +257,61 @@ export const videosApi = {
         return data;
     },
 
-    async uploadThumbnail(file: File) {
+    async uploadThumbnail(file: File | Blob) {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', file, file instanceof File ? file.name : 'thumbnail.jpg');
         const { data } = await api.post('/videos/upload-thumbnail', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return data;
+    },
+
+    // ============ 批量导入 API ============
+
+    async batchScan(): Promise<{
+        files: Array<{
+            name: string;
+            size: number;
+            category: string | null;
+            categoryId: string | null;
+            hasSubtitle: boolean;
+            path: string;
+        }>;
+        categories: Array<{
+            name: string;
+            id: string | null;
+            count: number;
+        }>;
+        importDir: string;
+    }> {
+        const { data } = await api.get('/videos/batch/scan');
+        return data;
+    },
+
+    async batchGetSubtitle(filePath: string): Promise<string> {
+        const { data } = await api.get(`/videos/batch/subtitle/${filePath}`);
+        return data;
+    },
+
+    async batchImport(params: {
+        filePath: string;
+        title?: string;
+        categoryId: string | null;
+        thumbnailUrl?: string;
+        subtitlesEn?: string | null;
+        subtitlesCn?: string | null;
+    }) {
+        const { data } = await api.post('/videos/batch/import', params);
+        return data;
+    },
+
+    async batchDeleteFile(filePath: string) {
+        const { data } = await api.delete(`/videos/batch/file/${filePath}`);
+        return data;
+    },
+
+    getBatchFileUrl(filePath: string): string {
+        return `${getActiveApiUrl()}/videos/batch/file/${filePath}`;
     }
 };
 

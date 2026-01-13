@@ -44,9 +44,10 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 const videosDir = path.join(uploadDir, 'videos');
 const thumbnailsDir = path.join(uploadDir, 'thumbnails');
+const importDir = path.join(uploadDir, 'import');
 
 // 确保上传目录和子目录存在
-[uploadDir, videosDir, thumbnailsDir].forEach(dir => {
+[uploadDir, videosDir, thumbnailsDir, importDir].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
         console.log(`📁 Created directory: ${dir}`);

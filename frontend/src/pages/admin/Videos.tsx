@@ -27,9 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Pencil, Trash2, Loader2, CheckCircle2, ImagePlus, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, CheckCircle2, ImagePlus, RefreshCw, FolderInput, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { videosApi, categoriesApi, Video, VideoCategory } from '@/lib/api-client';
+import { Progress } from '@/components/ui/progress';
+import { videosApi, categoriesApi, Video, VideoCategory, getActiveApiUrl } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
 
@@ -187,6 +188,27 @@ const AdminVideos: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [parsing, setParsing] = useState(false);
+
+  // 批量导入状态
+  const [isBatchOpen, setIsBatchOpen] = useState(false);
+  const [batchScanning, setBatchScanning] = useState(false);
+  const [batchImporting, setBatchImporting] = useState(false);
+  const [batchFiles, setBatchFiles] = useState<Array<{
+    name: string;
+    size: number;
+    category: string | null;
+    categoryId: string | null;
+    hasSubtitle: boolean;
+    path: string;
+  }>>([]);
+  const [batchCategories, setBatchCategories] = useState<Array<{
+    name: string;
+    id: string | null;
+    count: number;
+  }>>([]);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
+  const [batchCurrentFile, setBatchCurrentFile] = useState('');
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -289,6 +311,97 @@ const AdminVideos: React.FC = () => {
     setEditingVideo(null);
   };
 
+  // 批量导入 - 扫描目录
+  const handleBatchScan = async () => {
+    setBatchScanning(true);
+    try {
+      const result = await videosApi.batchScan();
+      setBatchFiles(result.files);
+      setBatchCategories(result.categories);
+
+      if (result.files.length === 0) {
+        toast({ title: '未发现视频文件', description: '请先将视频文件上传到 uploads/import 目录' });
+      } else {
+        toast({ title: `发现 ${result.files.length} 个视频文件` });
+      }
+    } catch (error: any) {
+      toast({ title: '扫描失败', description: error.message, variant: 'destructive' });
+    } finally {
+      setBatchScanning(false);
+    }
+  };
+
+  // 批量导入 - 执行导入
+  const handleBatchImport = async () => {
+    const validFiles = batchFiles.filter(f => f.categoryId !== null);
+    if (validFiles.length === 0) {
+      toast({ title: '没有可导入的文件', description: '所有文件的分类都无法匹配', variant: 'destructive' });
+      return;
+    }
+
+    setBatchImporting(true);
+    setBatchProgress({ current: 0, total: validFiles.length, success: 0, failed: 0 });
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      setBatchCurrentFile(file.name);
+      setBatchProgress(prev => ({ ...prev, current: i + 1 }));
+
+      try {
+        // 1. 生成封面
+        const videoUrl = `${getActiveApiUrl()}/videos/batch/file/${file.path}`;
+        let thumbnailUrl: string | undefined;
+        try {
+          const thumbBlob = await generateThumbnailFromUrl(videoUrl);
+          const thumbResult = await videosApi.uploadThumbnail(thumbBlob);
+          thumbnailUrl = thumbResult.thumbnailUrl;
+        } catch (e) {
+          console.warn('封面生成失败，跳过:', e);
+        }
+
+        // 2. 读取字幕（如有）
+        let subtitlesEn: string | null = null;
+        let subtitlesCn: string | null = null;
+        if (file.hasSubtitle) {
+          try {
+            const srtContent = await videosApi.batchGetSubtitle(file.path);
+            const { en, cn } = parseBilingualSRT(srtContent);
+            subtitlesEn = en || null;
+            subtitlesCn = cn || null;
+          } catch (e) {
+            console.warn('字幕解析失败，跳过:', e);
+          }
+        }
+
+        // 3. 导入视频
+        await videosApi.batchImport({
+          filePath: file.path,
+          title: file.name.replace(/\.\w+$/, ''),
+          categoryId: file.categoryId,
+          thumbnailUrl,
+          subtitlesEn,
+          subtitlesCn
+        });
+
+        setBatchProgress(prev => ({ ...prev, success: prev.success + 1 }));
+      } catch (error: any) {
+        console.error('导入失败:', file.name, error);
+        setBatchProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
+      }
+    }
+
+    setBatchImporting(false);
+    setBatchCurrentFile('');
+    queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
+    toast({
+      title: '批量导入完成',
+      description: `成功 ${batchProgress.success + 1} 个，失败 ${batchProgress.failed} 个`
+    });
+
+    // 重新扫描更新列表
+    handleBatchScan();
+  };
+
   const handleEdit = (video: Video) => {
     setEditingVideo(video);
     setFormData({
@@ -322,13 +435,150 @@ const AdminVideos: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">视频管理</h1>
-          <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                添加视频
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            {/* 批量导入按钮 */}
+            <Dialog open={isBatchOpen} onOpenChange={(open) => {
+              setIsBatchOpen(open);
+              if (open) handleBatchScan();
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FolderInput className="h-4 w-4 mr-2" />
+                  批量导入
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>批量导入视频</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    <p>将视频文件上传到服务器的 <code className="bg-muted px-1 rounded">uploads/import/</code> 目录，</p>
+                    <p>按分类名称创建子目录（如 <code className="bg-muted px-1 rounded">日常对话/</code>），系统将自动匹配分类。</p>
+                  </div>
+
+                  {/* 扫描结果统计 */}
+                  {batchCategories.length > 0 && (
+                    <div className="border rounded-lg p-4">
+                      <h4 className="font-medium mb-2">扫描结果</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {batchCategories.map((cat, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                            <span className="flex items-center gap-2">
+                              {cat.id ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                              ) : (
+                                <AlertCircle className="w-4 h-4 text-yellow-500" />
+                              )}
+                              {cat.name}
+                            </span>
+                            <span className="text-muted-foreground">{cat.count} 个</span>
+                          </div>
+                        ))}
+                      </div>
+                      {batchCategories.some(c => !c.id) && (
+                        <p className="text-xs text-yellow-600 mt-2">
+                          <AlertCircle className="w-3 h-3 inline mr-1" />
+                          黄色标记的分类无法匹配，这些视频将被跳过
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 导入进度 */}
+                  {batchImporting && (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span>正在导入: {batchCurrentFile}</span>
+                        <span>{batchProgress.current} / {batchProgress.total}</span>
+                      </div>
+                      <Progress value={(batchProgress.current / batchProgress.total) * 100} />
+                      <div className="flex gap-4 text-sm">
+                        <span className="text-green-600">成功: {batchProgress.success}</span>
+                        <span className="text-red-600">失败: {batchProgress.failed}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 文件列表 */}
+                  {batchFiles.length > 0 && !batchImporting && (
+                    <div className="border rounded-lg max-h-60 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>文件名</TableHead>
+                            <TableHead>分类</TableHead>
+                            <TableHead>字幕</TableHead>
+                            <TableHead className="text-right">大小</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {batchFiles.map((file, idx) => (
+                            <TableRow key={idx} className={!file.categoryId ? 'opacity-50' : ''}>
+                              <TableCell className="font-medium">{file.name}</TableCell>
+                              <TableCell>
+                                {file.categoryId ? (
+                                  <span className="text-green-600">{file.category}</span>
+                                ) : (
+                                  <span className="text-yellow-600">{file.category || '未分类'}</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {file.hasSubtitle ? (
+                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {(file.size / 1024 / 1024).toFixed(1)} MB
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {/* 操作按钮 */}
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={handleBatchScan}
+                      disabled={batchScanning || batchImporting}
+                    >
+                      {batchScanning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                      刷新扫描
+                    </Button>
+                    <Button
+                      onClick={handleBatchImport}
+                      disabled={batchImporting || batchFiles.filter(f => f.categoryId).length === 0}
+                    >
+                      {batchImporting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          导入中...
+                        </>
+                      ) : (
+                        <>
+                          <FolderInput className="w-4 h-4 mr-2" />
+                          开始导入 ({batchFiles.filter(f => f.categoryId).length} 个)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* 添加视频按钮 */}
+            <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  添加视频
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingVideo ? '编辑视频' : '添加视频'}</DialogTitle>
@@ -631,6 +881,7 @@ const AdminVideos: React.FC = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <Table>

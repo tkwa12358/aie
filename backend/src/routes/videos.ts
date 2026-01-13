@@ -302,5 +302,262 @@ router.post('/upload-thumbnail', authMiddleware, adminMiddleware, thumbnailUploa
     }
 });
 
+// ============ 批量导入功能 ============
+
+const importDir = path.join(uploadDir, 'import');
+
+// 确保导入目录存在
+if (!fs.existsSync(importDir)) {
+    fs.mkdirSync(importDir, { recursive: true });
+}
+
+interface ImportFile {
+    name: string;
+    size: number;
+    category: string | null;
+    categoryId: string | null;
+    hasSubtitle: boolean;
+    path: string;
+}
+
+interface CategorySummary {
+    name: string;
+    id: string | null;
+    count: number;
+}
+
+/**
+ * GET /videos/batch/scan - 扫描导入目录
+ */
+router.get('/batch/scan', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const files: ImportFile[] = [];
+        const categorySummary: Map<string, CategorySummary> = new Map();
+
+        // 获取所有分类
+        const categories = query<{ id: string; name: string }>('SELECT id, name FROM video_categories');
+        const categoryMap = new Map(categories.map(c => [c.name, c.id]));
+
+        // 递归扫描目录
+        const scanDirectory = (dir: string, relativePath: string = '') => {
+            if (!fs.existsSync(dir)) return;
+
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+
+            for (const item of items) {
+                const itemPath = path.join(dir, item.name);
+                const relPath = relativePath ? `${relativePath}/${item.name}` : item.name;
+
+                if (item.isDirectory()) {
+                    // 子目录代表分类
+                    scanDirectory(itemPath, relPath);
+                } else if (item.isFile()) {
+                    // 检查是否是视频文件
+                    const ext = path.extname(item.name).toLowerCase();
+                    if (['.mp4', '.webm', '.mov'].includes(ext)) {
+                        const baseName = path.basename(item.name, ext);
+                        const srtPath = path.join(dir, `${baseName}.srt`);
+                        const hasSubtitle = fs.existsSync(srtPath);
+
+                        // 获取分类名称（从父目录）
+                        const categoryName = relativePath || null;
+                        const categoryId = categoryName ? categoryMap.get(categoryName) || null : null;
+
+                        const stat = fs.statSync(itemPath);
+
+                        files.push({
+                            name: item.name,
+                            size: stat.size,
+                            category: categoryName,
+                            categoryId,
+                            hasSubtitle,
+                            path: relPath
+                        });
+
+                        // 更新分类统计
+                        const summaryKey = categoryName || '未分类';
+                        if (!categorySummary.has(summaryKey)) {
+                            categorySummary.set(summaryKey, {
+                                name: summaryKey,
+                                id: categoryId,
+                                count: 0
+                            });
+                        }
+                        categorySummary.get(summaryKey)!.count++;
+                    }
+                }
+            }
+        };
+
+        scanDirectory(importDir);
+
+        res.json({
+            files,
+            categories: Array.from(categorySummary.values()),
+            importDir: '/uploads/import'
+        });
+    } catch (error) {
+        console.error('Batch scan error:', error);
+        res.status(500).json({ error: '扫描导入目录失败' });
+    }
+});
+
+/**
+ * GET /videos/batch/file/* - 获取待导入的视频文件
+ */
+router.get('/batch/file/*', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const filePath = req.params[0];
+        const fullPath = path.join(importDir, filePath);
+
+        // 安全检查：确保路径在 importDir 内
+        if (!fullPath.startsWith(importDir)) {
+            return res.status(403).json({ error: '非法路径' });
+        }
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ error: '文件不存在' });
+        }
+
+        res.sendFile(fullPath);
+    } catch (error) {
+        console.error('Get batch file error:', error);
+        res.status(500).json({ error: '获取文件失败' });
+    }
+});
+
+/**
+ * GET /videos/batch/subtitle/* - 获取字幕文件内容
+ */
+router.get('/batch/subtitle/*', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const filePath = req.params[0];
+        // 将视频路径转换为字幕路径
+        const ext = path.extname(filePath);
+        const srtPath = filePath.replace(ext, '.srt');
+        const fullPath = path.join(importDir, srtPath);
+
+        // 安全检查
+        if (!fullPath.startsWith(importDir)) {
+            return res.status(403).json({ error: '非法路径' });
+        }
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ error: '字幕文件不存在' });
+        }
+
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        res.type('text/plain').send(content);
+    } catch (error) {
+        console.error('Get subtitle error:', error);
+        res.status(500).json({ error: '获取字幕失败' });
+    }
+});
+
+/**
+ * POST /videos/batch/import - 导入单个视频
+ */
+router.post('/batch/import', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const { filePath, title, categoryId, thumbnailUrl, subtitlesEn, subtitlesCn } = req.body;
+
+        if (!filePath) {
+            return res.status(400).json({ error: '请提供文件路径' });
+        }
+
+        const sourcePath = path.join(importDir, filePath);
+
+        // 安全检查
+        if (!sourcePath.startsWith(importDir)) {
+            return res.status(403).json({ error: '非法路径' });
+        }
+
+        if (!fs.existsSync(sourcePath)) {
+            return res.status(404).json({ error: '文件不存在' });
+        }
+
+        // 生成新文件名并移动到正式目录
+        const ext = path.extname(filePath);
+        const newFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+        const destPath = path.join(uploadDir, 'videos', newFilename);
+
+        // 确保目标目录存在
+        const videosDir = path.join(uploadDir, 'videos');
+        if (!fs.existsSync(videosDir)) {
+            fs.mkdirSync(videosDir, { recursive: true });
+        }
+
+        // 移动文件
+        fs.renameSync(sourcePath, destPath);
+
+        // 删除同名字幕文件（已处理）
+        const srtPath = sourcePath.replace(ext, '.srt');
+        if (fs.existsSync(srtPath)) {
+            fs.unlinkSync(srtPath);
+        }
+
+        // 清理空目录
+        const sourceDir = path.dirname(sourcePath);
+        if (sourceDir !== importDir) {
+            try {
+                const remaining = fs.readdirSync(sourceDir);
+                if (remaining.length === 0) {
+                    fs.rmdirSync(sourceDir);
+                }
+            } catch (e) {
+                // 忽略删除目录失败
+            }
+        }
+
+        const videoUrl = `/uploads/videos/${newFilename}`;
+        const videoTitle = title || path.basename(filePath, ext);
+
+        // 创建视频记录
+        const id = uuidv4();
+        run(
+            `INSERT INTO videos (id, category_id, title, video_url, thumbnail_url, subtitles_en, subtitles_cn, is_published)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+            [id, categoryId || null, videoTitle, videoUrl, thumbnailUrl || null, subtitlesEn || null, subtitlesCn || null]
+        );
+
+        const video = queryOne<Video>('SELECT * FROM videos WHERE id = ?', [id]);
+        res.status(201).json(video);
+    } catch (error) {
+        console.error('Batch import error:', error);
+        res.status(500).json({ error: '导入视频失败' });
+    }
+});
+
+/**
+ * DELETE /videos/batch/file/* - 删除待导入的文件
+ */
+router.delete('/batch/file/*', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const filePath = req.params[0];
+        const fullPath = path.join(importDir, filePath);
+
+        // 安全检查
+        if (!fullPath.startsWith(importDir)) {
+            return res.status(403).json({ error: '非法路径' });
+        }
+
+        if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+        }
+
+        // 同时删除同名字幕
+        const ext = path.extname(fullPath);
+        const srtPath = fullPath.replace(ext, '.srt');
+        if (fs.existsSync(srtPath)) {
+            fs.unlinkSync(srtPath);
+        }
+
+        res.json({ message: '文件已删除' });
+    } catch (error) {
+        console.error('Delete batch file error:', error);
+        res.status(500).json({ error: '删除文件失败' });
+    }
+});
+
 export default router;
 
