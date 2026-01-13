@@ -366,15 +366,22 @@ function createTables(): void {
   db.run(`CREATE INDEX IF NOT EXISTS idx_device_fp ON device_registrations(device_fingerprint)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_device_user ON device_registrations(user_id)`);
 
-  // 插入默认视频分类
-  const existingCats = query('SELECT COUNT(*) as count FROM video_categories');
-  if (existingCats.length === 0 || (existingCats[0] as any).count === 0) {
-    run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-1', '日常对话', '日常生活中的英语对话', 1]);
-    run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-2', '商务英语', '商务场景的英语表达', 2]);
-    run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-3', '新闻英语', '新闻报道和时事话题', 3]);
-    run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-4', '影视英语', '电影和电视剧片段', 4]);
-    run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-5', '演讲TED', 'TED演讲和公开演讲', 5]);
-  }
+  // 插入默认视频分类（使用 INSERT OR IGNORE 确保幂等性，新分类会被添加到已有数据库）
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-1', '日常对话', '日常生活中的英语对话', 1]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-2', '商务英语', '商务场景的英语表达', 2]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-3', '新闻英语', '新闻报道和时事话题', 3]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-4', '影视英语', '电影和电视剧片段', 4]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-5', '演讲TED', 'TED演讲和公开演讲', 5]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-6', '宠物', '宠物相关英语内容', 6]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-7', '工作职场', '职场和工作相关英语', 7]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-8', '购物时尚', '购物和时尚相关英语', 8]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-9', '旅行', '旅行和出行相关英语', 9]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-10', '情感成长', '情感和个人成长话题', 10]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-11', '生活方式', '生活方式和日常习惯', 11]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-12', '食物', '美食和烹饪相关英语', 12]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-13', '书籍电影', '书籍和电影讨论', 13]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-14', '数码产品', '科技和数码产品相关', 14]);
+  run('INSERT OR IGNORE INTO video_categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)', ['cat-15', '兴趣爱好', '各种兴趣爱好话题', 15]);
 
   // 插入默认管理员
   const existingAdmin = queryOne("SELECT id FROM users WHERE email = 'admin@163.com'");

@@ -77,19 +77,19 @@ COPY --from=frontend-builder /app/frontend/dist ./public
 # 复制词库数据
 COPY backend/data/dictionary/merged ./data/dictionary/merged
 
-# 创建必要的目录结构
+# 创建必要的目录结构（与 docker-compose.yml 挂载路径一致）
 RUN mkdir -p \
-    /app/database \
-    /app/uploads/videos \
-    /app/uploads/thumbnails \
+    /app/backend/database \
+    /app/backend/uploads/videos \
+    /app/backend/uploads/thumbnails \
     /app/logs \
     && chown -R nodejs:nodejs /app
 
-# 设置环境变量
+# 设置环境变量（路径与 docker-compose.yml 保持一致）
 ENV NODE_ENV=production \
     PORT=3000 \
-    DATA_DIR=/app/database \
-    UPLOAD_DIR=/app/uploads \
+    DATA_DIR=/app/backend/database \
+    UPLOAD_DIR=/app/backend/uploads \
     DICTIONARY_DIR=/app/data/dictionary/merged \
     FRONTEND_DIR=/app/public \
     LOG_DIR=/app/logs \
@@ -98,8 +98,8 @@ ENV NODE_ENV=production \
 # 切换到非 root 用户
 USER nodejs
 
-# 持久化卷
-VOLUME ["/app/database", "/app/uploads", "/app/logs"]
+# 注意：不再声明 VOLUME，让 docker-compose 完全控制数据卷挂载
+# 这样可以避免匿名卷导致的数据丢失问题
 
 # 暴露端口
 EXPOSE 3000

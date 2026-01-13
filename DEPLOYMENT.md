@@ -315,6 +315,56 @@ git pull origin main
 
 ---
 
+## 增量部署（保留数据）
+
+> ⚠️ **重要**: 增量部署可以在更新代码的同时保留所有用户数据（数据库、上传的视频、用户信息等）。
+
+### 增量部署步骤
+
+```bash
+# 1. 进入项目目录
+cd /opt/ai-english-studio  # 或你的安装目录
+
+# 2. 备份数据（可选但推荐）
+cp -r backend/database backend/database.bak
+cp -r backend/uploads backend/uploads.bak
+
+# 3. 拉取最新代码
+git pull origin main
+
+# 4. 重新构建并启动（数据会保留）
+docker compose -f docker-compose.yml up -d --build
+```
+
+### 为什么数据会保留？
+
+1. **绑定挂载**: 数据存储在宿主机的 `./backend/database` 和 `./backend/uploads` 目录
+2. **容器重建不影响宿主机目录**: `--build` 只重建镜像，不会删除宿主机文件
+3. **幂等初始化**: 数据库初始化使用 `CREATE TABLE IF NOT EXISTS`，不会覆盖现有数据
+
+### 数据丢失的常见原因及解决方案
+
+| 原因 | 解决方案 |
+|------|----------|
+| 删除了 `backend/database` 目录 | 从备份恢复 |
+| 使用了错误的 docker-compose 文件 | 始终使用 `-f docker-compose.yml` |
+| 容器内路径与挂载路径不一致 | 确保 Dockerfile 和 docker-compose.yml 配置一致 |
+| 权限问题导致无法读取数据库 | `sudo chown -R 1001:1001 backend/database` |
+
+### 首次部署后的数据目录结构
+
+```
+项目目录/
+├── backend/
+│   ├── database/
+│   │   └── ai_english.db     # SQLite 数据库（所有用户数据）
+│   └── uploads/
+│       ├── videos/           # 上传的视频文件
+│       └── thumbnails/       # 视频缩略图
+```
+
+---
+
 ## 开发者信息
 
 - **项目**: AI English Studio
