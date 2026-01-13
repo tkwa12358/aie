@@ -31,6 +31,7 @@ import { Plus, Pencil, Trash2, Loader2, CheckCircle2, ImagePlus, RefreshCw, Fold
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { videosApi, categoriesApi, Video, VideoCategory, getStorageUrl } from '@/lib/api-client';
+import { getActiveApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
 
@@ -354,7 +355,8 @@ const AdminVideos: React.FC = () => {
       try {
         // 1. 生成封面（带 token 参数支持认证）
         const token = localStorage.getItem('token');
-        const videoUrl = `${getActiveApiUrl()}/videos/batch/file/${encodeURIComponent(file.path)}?token=${token}`;
+        const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+        const videoUrl = `${getActiveApiUrl()}/videos/batch/file/${encodeURIComponent(file.path)}${tokenQuery}`;
         let thumbnailUrl: string | undefined;
         try {
           const thumbBlob = await generateThumbnailFromUrl(videoUrl);
