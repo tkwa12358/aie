@@ -85,7 +85,7 @@ const AdminUsers: React.FC = () => {
       await usersApi.updateUser(id, {
         displayName: data.display_name,
         role: data.role,
-        professionalVoiceMinutes: data.professional_voice_minutes
+        professionalVoiceMinutes: Math.max(0, Math.round(data.professional_voice_minutes * 60))
       } as any);
     },
     onSuccess: () => {
@@ -122,7 +122,7 @@ const AdminUsers: React.FC = () => {
     setFormData({
       display_name: user.display_name || '',
       role: user.role,
-      professional_voice_minutes: user.professional_voice_minutes || 0,
+      professional_voice_minutes: Number(((user.professional_voice_minutes || 0) / 60).toFixed(1)),
     });
     setIsOpen(true);
   };
@@ -180,7 +180,7 @@ const AdminUsers: React.FC = () => {
               <TableHead>手机号</TableHead>
               <TableHead>昵称</TableHead>
               <TableHead>角色</TableHead>
-              <TableHead>专业评测时长</TableHead>
+              <TableHead>专业评测时长(分钟)</TableHead>
               <TableHead>注册时间</TableHead>
               <TableHead>操作</TableHead>
             </TableRow>
@@ -203,7 +203,7 @@ const AdminUsers: React.FC = () => {
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Crown className="h-3 w-3 text-primary" />
-                    {user.professional_voice_minutes || 0} 秒
+                    {((user.professional_voice_minutes || 0) / 60).toFixed(1)} 分钟
                   </div>
                 </TableCell>
                 <TableCell>{format(new Date(user.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
@@ -257,12 +257,13 @@ const AdminUsers: React.FC = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="professional_voice_minutes">专业评测时长(秒)</Label>
+                <Label htmlFor="professional_voice_minutes">专业评测时长(分钟)</Label>
                 <Input
                   id="professional_voice_minutes"
                   type="number"
                   value={formData.professional_voice_minutes}
-                  onChange={(e) => setFormData({ ...formData, professional_voice_minutes: parseInt(e.target.value) || 0 })}
+                  step="0.1"
+                  onChange={(e) => setFormData({ ...formData, professional_voice_minutes: parseFloat(e.target.value) || 0 })}
                 />
               </div>
               <Button type="submit" className="w-full">

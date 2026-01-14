@@ -56,9 +56,13 @@ export const ProfessionalAssessment = ({
   const [error, setError] = useState<string | null>(null);
   const [showAuthCodeDialog, setShowAuthCodeDialog] = useState(false);
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const mimeTypeRef = useRef<string>('audio/webm');
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const recordedBuffersRef = useRef<Float32Array[]>([]);
+  const sampleRateRef = useRef<number>(44100);
   const practiceStartTimeRef = useRef<number>(Date.now());
 
   // 记录跟读练习时长到用户统计
@@ -85,8 +89,54 @@ export const ProfessionalAssessment = ({
     };
   }, []);
 
-  // 获取专业评测剩余时间（数据库直接存储秒数）
+  // 获取专业评测剩余时间（数据库存秒，展示按分钟）
   const professionalSeconds = (profile as { professional_voice_minutes?: number })?.professional_voice_minutes || 0;
+  const professionalMinutes = professionalSeconds / 60;
+
+  const mergeBuffers = (buffers: Float32Array[]) => {
+    const totalLength = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
+    const result = new Float32Array(totalLength);
+    let offset = 0;
+    buffers.forEach((buffer) => {
+      result.set(buffer, offset);
+      offset += buffer.length;
+    });
+    return result;
+  };
+
+  const encodeWav = (samples: Float32Array, sampleRate: number) => {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i += 1) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i += 1) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      offset += 2;
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+  };
 
   const startRecording = async () => {
     if (professionalSeconds <= 0) {
@@ -122,41 +172,39 @@ export const ProfessionalAssessment = ({
         return;
       }
 
-      // 检测支持的 mimeType
-      let mimeType = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = 'audio/mp4';
-          if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = ''; // 使用默认
-          }
-        }
+      const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextConstructor) {
+        setError('当前浏览器不支持录音功能，请使用 Safari 或 Chrome');
+        stream.getTracks().forEach(track => track.stop());
+        return;
       }
 
-      // 保存实际使用的 mimeType
-      mimeTypeRef.current = mimeType || 'audio/webm';
+      const audioContext = new AudioContextConstructor();
+      await audioContext.resume();
 
-      const mediaRecorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
+      sampleRateRef.current = audioContext.sampleRate;
+      recordedBuffersRef.current = [];
 
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
+      const sourceNode = audioContext.createMediaStreamSource(stream);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 0;
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+      processor.onaudioprocess = (event) => {
+        const input = event.inputBuffer.getChannelData(0);
+        recordedBuffersRef.current.push(new Float32Array(input));
       };
 
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current });
-        setAudioBlob(blob);
-        stream.getTracks().forEach(track => track.stop());
-      };
+      sourceNode.connect(processor);
+      processor.connect(gainNode);
+      gainNode.connect(audioContext.destination);
 
-      mediaRecorder.start();
+      audioContextRef.current = audioContext;
+      mediaStreamRef.current = stream;
+      sourceNodeRef.current = sourceNode;
+      processorRef.current = processor;
+      gainNodeRef.current = gainNode;
+
       setIsRecording(true);
     } catch (err: unknown) {
       // 检查是否是权限问题
@@ -179,19 +227,40 @@ export const ProfessionalAssessment = ({
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      // 先请求剩余的数据，确保不会丢失
-      if (mediaRecorderRef.current.state === 'recording') {
-        mediaRecorderRef.current.requestData();
-      }
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+  const stopRecording = async () => {
+    if (!isRecording) return;
+
+    setIsRecording(false);
+
+    processorRef.current?.disconnect();
+    sourceNodeRef.current?.disconnect();
+    gainNodeRef.current?.disconnect();
+    mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+
+    if (audioContextRef.current) {
+      await audioContextRef.current.close();
     }
+
+    const merged = mergeBuffers(recordedBuffersRef.current);
+    if (!merged.length) {
+      setAudioBlob(null);
+      setError('未录到声音，请检查麦克风权限后重试');
+      return;
+    }
+
+    const wavBlob = encodeWav(merged, sampleRateRef.current);
+    if (!wavBlob.size) {
+      setAudioBlob(null);
+      setError('录音数据无效，请重新录音');
+      return;
+    }
+
+    setAudioBlob(wavBlob);
   };
 
   const submitForAssessment = async () => {
-    if (!audioBlob) {
+    if (!audioBlob || !audioBlob.size) {
+      setError('未录到声音，请检查麦克风权限后重试');
       return;
     }
 
@@ -237,7 +306,7 @@ export const ProfessionalAssessment = ({
             } else {
               toast({
                 title: '专业评测完成',
-                description: `总分: ${data.overall_score}分，已扣除${data.seconds_used}秒`,
+                description: `总分: ${data.overall_score}分，已扣除${(data.seconds_used / 60).toFixed(1)}分钟`,
               });
             }
 
@@ -368,7 +437,7 @@ export const ProfessionalAssessment = ({
               {isRecording ? '点击停止录音' : audioBlob ? '' : '点击开始录音'}
             </p>
             <p className="text-xs text-primary mt-2 font-medium">
-              专业评测剩余: {professionalSeconds}秒
+              专业评测剩余: {professionalMinutes.toFixed(1)}分钟
             </p>
           </div>
         )}
@@ -443,7 +512,7 @@ export const ProfessionalAssessment = ({
             {/* Billing info */}
             {result.billed && (
               <p className="text-xs text-muted-foreground text-center">
-                已扣除 {result.seconds_used} 秒，剩余 {result.remaining_seconds} 秒
+                已扣除 {(result.seconds_used / 60).toFixed(1)} 分钟，剩余 {(result.remaining_seconds / 60).toFixed(1)} 分钟
               </p>
             )}
           </div>

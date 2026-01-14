@@ -32,6 +32,7 @@ export const AuthCodeDialog = ({ trigger, open, onOpenChange }: AuthCodeDialogPr
   const setIsOpen = isControlled ? onOpenChange! : setInternalOpen;
 
   const professionalSeconds = (profile as { professional_voice_minutes?: number })?.professional_voice_minutes || 0;
+  const professionalMinutes = professionalSeconds / 60;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +71,7 @@ export const AuthCodeDialog = ({ trigger, open, onOpenChange }: AuthCodeDialogPr
         const minutesAdded = result.minutesAdded || 0;
         toast({
           title: '充值成功',
-          description: `已添加 ${minutesAdded * 60} 秒专业评测时间`,
+          description: `已添加 ${minutesAdded} 分钟专业评测时间`,
         });
       }
 
@@ -114,7 +115,7 @@ export const AuthCodeDialog = ({ trigger, open, onOpenChange }: AuthCodeDialogPr
           <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
             <CheckCircle2 className="w-4 h-4 text-primary" />
             <span className="text-sm">
-              当前专业评测时间: <span className="font-bold text-primary">{professionalSeconds} 秒</span>
+              当前专业评测时间: <span className="font-bold text-primary">{professionalMinutes.toFixed(1)} 分钟</span>
             </span>
           </div>
 

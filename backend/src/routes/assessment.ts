@@ -160,7 +160,8 @@ router.post('/evaluate', authMiddleware, async (req: Request, res: Response) => 
 
         const assessmentId = uuidv4();
         const durationSeconds = result.duration || 10;
-        const minutesCharged = Math.ceil(durationSeconds / 60);
+        const secondsCharged = Math.max(1, Math.ceil(durationSeconds));
+        const minutesCharged = Math.ceil(secondsCharged / 60);
 
         run(
             `INSERT INTO professional_assessments 
@@ -173,18 +174,23 @@ router.post('/evaluate', authMiddleware, async (req: Request, res: Response) => 
                 JSON.stringify(result.words || []), result.feedback || null, durationSeconds, minutesCharged]
         );
 
-        update('UPDATE users SET professional_voice_minutes = professional_voice_minutes - ? WHERE id = ?', [minutesCharged, userId]);
+        update('UPDATE users SET professional_voice_minutes = professional_voice_minutes - ? WHERE id = ?', [secondsCharged, userId]);
         update('UPDATE user_statistics SET total_assessments = total_assessments + 1 WHERE user_id = ?', [userId]);
+
+        const remainingSeconds = Math.max(0, (user?.professional_voice_minutes || 0) - secondsCharged);
 
         res.json({
             assessmentId,
-            pronunciationScore: result.pronunciationScore,
-            accuracyScore: result.accuracyScore,
-            fluencyScore: result.fluencyScore,
-            completenessScore: result.completenessScore,
-            overallScore: result.overallScore,
-            words: result.words,
+            overall_score: result.overallScore,
+            pronunciation_score: result.pronunciationScore,
+            accuracy_score: result.accuracyScore,
+            fluency_score: result.fluencyScore,
+            completeness_score: result.completenessScore,
+            words_result: result.words || [],
             feedback: result.feedback,
+            seconds_used: secondsCharged,
+            remaining_seconds: remainingSeconds,
+            billed: true,
             minutesCharged,
             provider: provider.name
         });

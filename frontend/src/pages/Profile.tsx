@@ -16,8 +16,9 @@ const Profile: React.FC = () => {
   const [code, setCode] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
 
-  // 获取专业评测时间（数据库直接存储秒数）
+  // 获取专业评测时间（数据库存秒，展示按分钟）
   const professionalSeconds = (profile as { professional_voice_minutes?: number })?.professional_voice_minutes || 0;
+  const professionalMinutes = professionalSeconds / 60;
 
   const handleRedeem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,8 +103,8 @@ const Profile: React.FC = () => {
                     <Clock className="h-8 w-8 text-primary" />
                   </div>
                   <div>
-                    <p className="text-3xl font-bold text-primary">{professionalSeconds}</p>
-                    <p className="text-sm text-muted-foreground">剩余评测秒数</p>
+                    <p className="text-3xl font-bold text-primary">{professionalMinutes.toFixed(1)}</p>
+                    <p className="text-sm text-muted-foreground">剩余评测分钟</p>
                   </div>
                 </div>
 

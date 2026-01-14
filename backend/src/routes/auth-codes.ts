@@ -127,6 +127,7 @@ router.post('/redeem', authMiddleware, async (req: Request, res: Response) => {
 
         const codeType = authCode.code_type;
         const minutes = authCode.minutes_amount || CODE_TYPE_CONFIG[codeType]?.minutes || 0;
+        const seconds = minutes * 60;
 
         // 根据不同授权码类型处理
         if (codeType === 'registration' || codeType === 'app_unlock') {
@@ -137,8 +138,8 @@ router.post('/redeem', authMiddleware, async (req: Request, res: Response) => {
                 activated: true
             });
         } else if (codeType.startsWith('pro_')) {
-            update('UPDATE users SET professional_voice_minutes = professional_voice_minutes + ? WHERE id = ?', [minutes, userId]);
-            res.json({ message: '授权码兑换成功', codeType, minutesAdded: minutes });
+            update('UPDATE users SET professional_voice_minutes = professional_voice_minutes + ? WHERE id = ?', [seconds, userId]);
+            res.json({ message: '授权码兑换成功', codeType, minutesAdded: minutes, secondsAdded: seconds });
         } else if (codeType === '10min' || codeType === '60min') {
             update('UPDATE users SET voice_credits = voice_credits + ? WHERE id = ?', [minutes, userId]);
             res.json({ message: '授权码兑换成功', codeType, minutesAdded: minutes });

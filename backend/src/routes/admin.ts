@@ -144,6 +144,7 @@ router.post('/set-role', authMiddleware, adminMiddleware, async (req: Request, r
 router.post('/add-credits', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
     try {
         const { userId, voiceCredits, professionalMinutes } = req.body;
+        const professionalSeconds = professionalMinutes ? Number(professionalMinutes) * 60 : 0;
 
         if (!userId) {
             return res.status(400).json({ error: '请提供用户ID' });
@@ -153,7 +154,7 @@ router.post('/add-credits', authMiddleware, adminMiddleware, async (req: Request
         const params: any[] = [];
 
         if (voiceCredits) { updates.push('voice_credits = voice_credits + ?'); params.push(voiceCredits); }
-        if (professionalMinutes) { updates.push('professional_voice_minutes = professional_voice_minutes + ?'); params.push(professionalMinutes); }
+        if (professionalSeconds) { updates.push('professional_voice_minutes = professional_voice_minutes + ?'); params.push(professionalSeconds); }
 
         if (updates.length === 0) {
             return res.status(400).json({ error: '请提供要添加的额度' });
@@ -171,7 +172,7 @@ router.post('/add-credits', authMiddleware, adminMiddleware, async (req: Request
         res.json({
             message: '额度已添加',
             voiceCredits: user?.voice_credits,
-            professionalMinutes: user?.professional_voice_minutes
+            professionalMinutes: Math.floor((user?.professional_voice_minutes || 0) / 60)
         });
     } catch (error) {
         console.error('Add credits error:', error);

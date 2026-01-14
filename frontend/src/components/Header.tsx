@@ -10,8 +10,9 @@ export const Header = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // 获取专业评测时间（数据库直接存储秒数）
+  // 获取专业评测时间（数据库存秒，展示按分钟）
   const professionalSeconds = (profile as { professional_voice_minutes?: number })?.professional_voice_minutes || 0;
+  const professionalMinutes = (professionalSeconds / 60);
 
   const handleSignOut = async () => {
     await signOut();
@@ -63,7 +64,7 @@ export const Header = () => {
               <Link to="/profile">
                 <div className="flex items-center gap-2 px-3 py-1.5 glass rounded-xl cursor-pointer hover:bg-accent/50 transition-colors">
                   <Crown className="w-4 h-4 text-primary" />
-                  <span className="font-medium text-sm">{professionalSeconds}秒</span>
+                  <span className="font-medium text-sm">{professionalMinutes.toFixed(1)}分钟</span>
                   <User className="w-3 h-3 text-muted-foreground" />
                 </div>
               </Link>
@@ -137,7 +138,7 @@ export const Header = () => {
                 <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
                   <div className="flex items-center gap-2 px-3 py-2 glass rounded-xl cursor-pointer hover:bg-accent/50 transition-colors">
                     <Crown className="w-4 h-4 text-primary" />
-                    <span>专业评测: {professionalSeconds}秒</span>
+                    <span>专业评测: {professionalMinutes.toFixed(1)}分钟</span>
                     <User className="w-3 h-3 text-muted-foreground" />
                   </div>
                 </Link>
