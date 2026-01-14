@@ -134,7 +134,7 @@ const Learn = () => {
 
   const fetchVideos = async () => {
     try {
-      const data = await videosApi.getVideos({ published: true });
+      const data = await videosApi.getVideos({ published: true, limit: 500 });
       // Filter videos with valid video_url
       const validVideos = data.filter(v => v.video_url && v.video_url.trim() !== '');
       setVideos(validVideos);
