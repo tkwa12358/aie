@@ -398,97 +398,50 @@ const Learn = () => {
                 </div>
               </div>
 
-              {/* 移动端布局：视频固定 + 悬浮字幕 + 字幕列表 */}
-              <div className="lg:hidden flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
-                {/* 视频区域 - sticky 固定在顶部 */}
-                <div className="sticky top-0 z-30 bg-background shrink-0">
-                  <div className="glass rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
-                    <VideoPlayer
-                      ref={playerRef}
-                      videoUrl={getStorageUrl(selectedVideo.video_url)}
-                      subtitles={subtitles}
-                      subtitlesCn={subtitlesCn}
-                      currentSubtitle={currentSubtitle}
-                      onTimeUpdate={handleTimeUpdate}
-                      onSubtitleClick={handleSubtitleClick}
-                      showTranslation={showTranslation}
-                      onToggleTranslation={() => setShowTranslation(!showTranslation)}
-                      onPlay={startTracking}
-                      onPause={() => {
-                        pauseTracking();
-                        savePosition(currentTime);
-                      }}
-                    />
-                  </div>
-
-                  {/* 当前字幕悬浮条 */}
-                  {currentSubtitle && (
-                    <div className="bg-black/80 backdrop-blur text-white p-3 text-center">
-                      <p className="text-sm font-medium">{currentSubtitle.text}</p>
-                      {showTranslation && subtitlesCn.find(s => Math.abs(s.start - currentSubtitle.start) < 0.5)?.text && (
-                        <p className="text-xs text-gray-300 mt-1">
-                          {subtitlesCn.find(s => Math.abs(s.start - currentSubtitle.start) < 0.5)?.text}
-                        </p>
-                      )}
+              {/* 单一布局：移动端上下，桌面端左右 */}
+              <div
+                className="flex flex-col lg:flex-row gap-6 lg:items-stretch h-[calc(100vh-180px)] lg:h-auto"
+              >
+                {/* 左侧/顶部：视频区域 */}
+                <div className="w-full lg:w-2/3 flex flex-col shrink-0">
+                  <div className="sticky top-0 z-30 bg-background lg:static lg:z-auto lg:bg-transparent">
+                    <div className="glass rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                      <VideoPlayer
+                        ref={playerRef}
+                        videoUrl={getStorageUrl(selectedVideo.video_url)}
+                        subtitles={subtitles}
+                        subtitlesCn={subtitlesCn}
+                        currentSubtitle={currentSubtitle}
+                        onTimeUpdate={handleTimeUpdate}
+                        onSubtitleClick={handleSubtitleClick}
+                        showTranslation={showTranslation}
+                        onToggleTranslation={() => setShowTranslation(!showTranslation)}
+                        onPlay={startTracking}
+                        onPause={() => {
+                          pauseTracking();
+                          savePosition(currentTime);
+                        }}
+                      />
                     </div>
-                  )}
+
+                    {/* 当前字幕悬浮条（仅移动端） */}
+                    {currentSubtitle && (
+                      <div className="bg-black/80 backdrop-blur text-white p-3 text-center lg:hidden">
+                        <p className="text-sm font-medium">{currentSubtitle.text}</p>
+                        {showTranslation && subtitlesCn.find(s => Math.abs(s.start - currentSubtitle.start) < 0.5)?.text && (
+                          <p className="text-xs text-gray-300 mt-1">
+                            {subtitlesCn.find(s => Math.abs(s.start - currentSubtitle.start) < 0.5)?.text}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* 字幕列表 - 可独立滚动 */}
-                <div className="flex-1 overflow-hidden mt-3">
-                  <div className="h-full glass rounded-2xl overflow-hidden shadow-xl flex flex-col ring-1 ring-white/10">
+                {/* 右侧/底部：字幕列表 */}
+                <div className="w-full lg:w-1/3 relative z-10 flex-1 overflow-hidden mt-3 lg:mt-0">
+                  <div className="h-full lg:h-full lg:absolute lg:inset-0 glass rounded-2xl overflow-hidden shadow-xl flex flex-col ring-1 ring-white/10">
                     <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/5 backdrop-blur-sm shrink-0">
-                      <span className="text-sm font-semibold flex items-center gap-2">
-                        <Languages className="w-4 h-4 text-primary" />
-                        字幕列表
-                      </span>
-                      <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                        {subtitles.length} 条
-                      </span>
-                    </div>
-                    <SubtitleList
-                      subtitles={subtitles}
-                      subtitlesCn={subtitlesCn}
-                      currentSubtitle={currentSubtitle}
-                      onSubtitleClick={handleSubtitleClick}
-                      onPractice={(subtitle) => {
-                        const index = subtitles.findIndex(s => s === subtitle);
-                        handlePractice(subtitle, index);
-                      }}
-                      onAddWord={(word, context, contextTranslation) => setLookupWord({ word, context, contextTranslation })}
-                      showTranslation={showTranslation}
-                      completedSentences={progress?.completed_sentences || []}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 桌面端布局：左右分栏 */}
-              <div className="hidden lg:flex flex-row gap-6 lg:items-stretch">
-                {/* 左侧视频区域 */}
-                <div className="w-full lg:w-2/3 glass rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 flex flex-col relative z-20">
-                  <VideoPlayer
-                    ref={playerRef}
-                    videoUrl={getStorageUrl(selectedVideo.video_url)}
-                    subtitles={subtitles}
-                    subtitlesCn={subtitlesCn}
-                    currentSubtitle={currentSubtitle}
-                    onTimeUpdate={handleTimeUpdate}
-                    onSubtitleClick={handleSubtitleClick}
-                    showTranslation={showTranslation}
-                    onToggleTranslation={() => setShowTranslation(!showTranslation)}
-                    onPlay={startTracking}
-                    onPause={() => {
-                      pauseTracking();
-                      savePosition(currentTime);
-                    }}
-                  />
-                </div>
-
-                {/* 右侧字幕列表 */}
-                <div className="w-full lg:w-1/3 relative z-10">
-                  <div className="h-[500px] lg:h-full lg:absolute lg:inset-0 glass rounded-2xl overflow-hidden shadow-xl flex flex-col ring-1 ring-white/10">
-                    <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/5 backdrop-blur-sm">
                       <span className="text-sm font-semibold flex items-center gap-2">
                         <Languages className="w-4 h-4 text-primary" />
                         字幕列表
