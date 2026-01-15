@@ -303,7 +303,7 @@ const LocalLearn: React.FC = () => {
         </Helmet>
         <div className="min-h-screen gradient-bg dark:gradient-bg-dark">
           <Header />
-          <main className="container mx-auto px-4 py-6">
+        <main className="container mx-auto px-4 pb-6 page-with-header">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Button
@@ -341,7 +341,7 @@ const LocalLearn: React.FC = () => {
             {/* 移动端布局：视频固定 + 悬浮字幕 + 字幕列表 */}
             <div className="lg:hidden flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
               {/* 视频区域 - sticky 固定在顶部 */}
-              <div className="sticky top-0 z-30 bg-background shrink-0">
+              <div className="sticky sticky-offset-top z-30 bg-background shrink-0">
                 <div className="glass rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
                   <VideoPlayer
                     ref={playerRef}
@@ -478,7 +478,7 @@ const LocalLearn: React.FC = () => {
       </Helmet>
       <div className="min-h-screen gradient-bg dark:gradient-bg-dark">
         <Header />
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 pb-8 page-with-header">
           <div className="max-w-2xl mx-auto">
             <Button
               variant="ghost"

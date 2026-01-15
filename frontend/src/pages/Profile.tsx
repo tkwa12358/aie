@@ -60,7 +60,7 @@ const Profile: React.FC = () => {
       <div className="min-h-screen gradient-bg dark:gradient-bg-dark">
         <Header />
 
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 pb-8 page-with-header">
           <div className="max-w-2xl mx-auto space-y-6">
             <h1 className="text-2xl font-bold">个人资料</h1>
 

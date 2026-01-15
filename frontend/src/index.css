@@ -69,6 +69,7 @@
 
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+    --header-height: 64px;
   }
 
   .dark {
@@ -125,9 +126,17 @@
   .glass {
     @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
   }
-  
+
   .glass-strong {
     @apply bg-card/90 backdrop-blur-2xl border border-border/30 shadow-xl;
+  }
+
+  .page-with-header {
+    padding-top: calc(var(--header-height) + env(safe-area-inset-top));
+  }
+
+  .sticky-offset-top {
+    top: calc(var(--header-height) + env(safe-area-inset-top));
   }
   
   .gradient-bg {

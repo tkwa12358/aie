@@ -80,7 +80,7 @@ const Statistics = () => {
       <div className="min-h-screen gradient-bg dark:gradient-bg-dark flex flex-col">
         <Header />
 
-        <main className="flex-1 container mx-auto px-4 py-6">
+        <main className="flex-1 container mx-auto px-4 pb-6 page-with-header">
           {/* 返回按钮 */}
           <Button
             variant="ghost"

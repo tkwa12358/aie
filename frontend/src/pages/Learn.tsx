@@ -291,7 +291,7 @@ const Learn = () => {
       <div className="min-h-screen gradient-bg dark:gradient-bg-dark flex flex-col">
         <Header />
 
-        <main className="flex-1 container mx-auto px-4 py-6">
+        <main className="flex-1 container mx-auto px-4 pb-6 page-with-header">
           {!selectedVideo ? (
             // Video List with Categories and Recent Learning
             <div>
@@ -404,7 +404,7 @@ const Learn = () => {
               >
                 {/* 左侧/顶部：视频区域 */}
                 <div className="w-full lg:w-2/3 flex flex-col shrink-0">
-                  <div className="sticky top-0 z-30 bg-background lg:static lg:z-auto lg:bg-transparent">
+                  <div className="sticky sticky-offset-top z-30 bg-background lg:static lg:z-auto lg:bg-transparent">
                     <div className="glass rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
                       <VideoPlayer
                         ref={playerRef}
