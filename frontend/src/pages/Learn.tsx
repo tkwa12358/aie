@@ -424,17 +424,6 @@ const Learn = () => {
                       />
                     </div>
 
-                    {/* 当前字幕悬浮条（仅移动端） */}
-                    {currentSubtitle && (
-                      <div className="bg-black/80 backdrop-blur text-white p-3 text-center lg:hidden">
-                        <p className="text-sm font-medium">{currentSubtitle.text}</p>
-                        {showTranslation && subtitlesCn.find(s => Math.abs(s.start - currentSubtitle.start) < 0.5)?.text && (
-                          <p className="text-xs text-gray-300 mt-1">
-                            {subtitlesCn.find(s => Math.abs(s.start - currentSubtitle.start) < 0.5)?.text}
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
 
