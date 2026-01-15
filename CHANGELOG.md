@@ -2,6 +2,13 @@
 
 本文档记录AI English Studio项目的所有重要变更。
 
+## [Unreleased]
+
+### 🐛 修复
+
+- **移动端录音启动**: 调整WebAudio录音启动顺序并补充静音输出，提升手机端录音稳定性
+- **移动端录音兼容**: iOS Safari 优先使用MediaRecorder并加入AudioSession配置，失败时回退WebAudio
+
 ## [2.0.0] - 2026-01-09
 
 ### 重大变更 - 项目架构重构

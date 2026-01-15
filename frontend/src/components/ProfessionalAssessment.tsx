@@ -57,13 +57,17 @@ export const ProfessionalAssessment = ({
   const [showAuthCodeDialog, setShowAuthCodeDialog] = useState(false);
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
   const recordedBuffersRef = useRef<Float32Array[]>([]);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingModeRef = useRef<'media-recorder' | 'webaudio' | null>(null);
   const sampleRateRef = useRef<number>(44100);
   const practiceStartTimeRef = useRef<number>(Date.now());
+  const audioSessionTypeRef = useRef<string | null>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   // 记录跟读练习时长到用户统计
   const recordPracticeTime = async () => {
@@ -104,6 +108,26 @@ export const ProfessionalAssessment = ({
     return result;
   };
 
+  const mixToMono = (buffer: AudioBuffer) => {
+    const channels = buffer.numberOfChannels;
+    if (channels === 1) {
+      return buffer.getChannelData(0);
+    }
+
+    const length = buffer.length;
+    const mixed = new Float32Array(length);
+    for (let channel = 0; channel < channels; channel += 1) {
+      const data = buffer.getChannelData(channel);
+      for (let i = 0; i < length; i += 1) {
+        mixed[i] += data[i];
+      }
+    }
+    for (let i = 0; i < length; i += 1) {
+      mixed[i] /= channels;
+    }
+    return mixed;
+  };
+
   const encodeWav = (samples: Float32Array, sampleRate: number) => {
     const buffer = new ArrayBuffer(44 + samples.length * 2);
     const view = new DataView(buffer);
@@ -138,6 +162,80 @@ export const ProfessionalAssessment = ({
     return new Blob([view], { type: 'audio/wav' });
   };
 
+  const isSilent = (samples: Float32Array, threshold = 0.0001) => {
+    if (!samples.length) return true;
+    let sum = 0;
+    for (let i = 0; i < samples.length; i += 1) {
+      const value = samples[i];
+      sum += value * value;
+    }
+    return sum / samples.length < threshold;
+  };
+
+  const isIosSafari = () => {
+    const ua = navigator.userAgent;
+    const isIos = /iPad|iPhone|iPod/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(ua);
+    return isIos && isSafari;
+  };
+
+  const getRecorderMimeType = () => {
+    if (typeof MediaRecorder === 'undefined') return undefined;
+    if (typeof MediaRecorder.isTypeSupported !== 'function') return undefined;
+
+    const candidates = [
+      'audio/mp4',
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg'
+    ];
+
+    for (const type of candidates) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+
+    return undefined;
+  };
+
+  const decodeToWav = async (blob: Blob) => {
+    const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return null;
+
+    const context = new AudioContextConstructor();
+    try {
+      const buffer = await blob.arrayBuffer();
+      const audioBuffer = await context.decodeAudioData(buffer.slice(0));
+      const monoSamples = mixToMono(audioBuffer);
+      if (isSilent(monoSamples)) {
+        return null;
+      }
+      return encodeWav(monoSamples, audioBuffer.sampleRate);
+    } finally {
+      await context.close();
+    }
+  };
+
+  const setAudioSessionType = (type: string | null) => {
+    const audioSession = (navigator as Navigator & { audioSession?: { type?: string } }).audioSession;
+    if (!audioSession) return;
+
+    try {
+      if (audioSessionTypeRef.current === null && audioSession.type) {
+        audioSessionTypeRef.current = audioSession.type;
+      }
+      if (type) {
+        audioSession.type = type;
+      } else if (audioSessionTypeRef.current) {
+        audioSession.type = audioSessionTypeRef.current;
+      }
+    } catch {
+      // Ignore AudioSession errors on unsupported platforms.
+    }
+  };
+
   const startRecording = async () => {
     if (professionalSeconds <= 0) {
       // 弹出授权码输入框
@@ -158,8 +256,16 @@ export const ProfessionalAssessment = ({
       return;
     }
 
+    let localAudioContext: AudioContext | null = null;
+
     try {
       setError(null);
+      audioPlayerRef.current?.pause();
+      audioPlayerRef.current = null;
+      recordingModeRef.current = null;
+      recordedChunksRef.current = [];
+
+      setAudioSessionType('play-and-record');
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true
@@ -171,42 +277,88 @@ export const ProfessionalAssessment = ({
         setError('未检测到可用的麦克风');
         return;
       }
+      audioTracks.forEach(track => {
+        track.enabled = true;
+      });
+
+      mediaStreamRef.current = stream;
+
+      const recorderMimeType = getRecorderMimeType();
+      const canUseMediaRecorder = typeof MediaRecorder !== 'undefined' && isIosSafari();
+      let mediaRecorderStarted = false;
+
+      if (canUseMediaRecorder) {
+        try {
+          const recorder = new MediaRecorder(stream, recorderMimeType ? { mimeType: recorderMimeType } : undefined);
+          recordedChunksRef.current = [];
+          recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              recordedChunksRef.current.push(event.data);
+            }
+          };
+          recorder.onstop = () => {
+            mediaRecorderRef.current = null;
+          };
+          recorder.start();
+          mediaRecorderRef.current = recorder;
+          recordingModeRef.current = 'media-recorder';
+          mediaRecorderStarted = true;
+        } catch (err) {
+          console.warn('MediaRecorder start failed, fallback to WebAudio:', err);
+        }
+      }
+
+      if (mediaRecorderStarted) {
+        setIsRecording(true);
+        return;
+      }
 
       const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioContextConstructor) {
         setError('当前浏览器不支持录音功能，请使用 Safari 或 Chrome');
-        stream.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+        setAudioSessionType(null);
         return;
       }
 
-      const audioContext = new AudioContextConstructor();
-      await audioContext.resume();
+      const createdAudioContext = new AudioContextConstructor();
+      localAudioContext = createdAudioContext;
+      const resumePromise = createdAudioContext.resume();
 
-      sampleRateRef.current = audioContext.sampleRate;
+      sampleRateRef.current = createdAudioContext.sampleRate;
       recordedBuffersRef.current = [];
 
-      const sourceNode = audioContext.createMediaStreamSource(stream);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = 0;
+      const sourceNode = createdAudioContext.createMediaStreamSource(stream);
+      const processor = createdAudioContext.createScriptProcessor(4096, 1, 1);
 
       processor.onaudioprocess = (event) => {
         const input = event.inputBuffer.getChannelData(0);
         recordedBuffersRef.current.push(new Float32Array(input));
+        const output = event.outputBuffer.getChannelData(0);
+        output.fill(0);
       };
 
       sourceNode.connect(processor);
-      processor.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      processor.connect(createdAudioContext.destination);
 
-      audioContextRef.current = audioContext;
-      mediaStreamRef.current = stream;
+      await resumePromise;
+
+      audioContextRef.current = createdAudioContext;
       sourceNodeRef.current = sourceNode;
       processorRef.current = processor;
-      gainNodeRef.current = gainNode;
+      recordingModeRef.current = 'webaudio';
 
       setIsRecording(true);
     } catch (err: unknown) {
+      if (localAudioContext) {
+        try {
+          await localAudioContext.close();
+        } catch {
+          // ignore cleanup failures
+        }
+      }
+      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+      setAudioSessionType(null);
       // 检查是否是权限问题
       const errorName = err instanceof Error ? (err as DOMException).name : '';
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -232,17 +384,61 @@ export const ProfessionalAssessment = ({
 
     setIsRecording(false);
 
+    if (recordingModeRef.current === 'media-recorder' && mediaRecorderRef.current) {
+      const recorder = mediaRecorderRef.current;
+      const stopped = new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+      });
+      recorder.stop();
+      await stopped;
+      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+      setAudioSessionType(null);
+      mediaRecorderRef.current = null;
+      mediaStreamRef.current = null;
+
+      const recordedBlob = new Blob(recordedChunksRef.current, {
+        type: recorder.mimeType || 'audio/webm'
+      });
+      recordedChunksRef.current = [];
+
+      if (!recordedBlob.size) {
+        setAudioBlob(null);
+        setError('未录到声音，请检查麦克风权限后重试');
+        return;
+      }
+
+      let wavBlob: Blob | null = null;
+      try {
+        wavBlob = recordedBlob.type === 'audio/wav' ? recordedBlob : await decodeToWav(recordedBlob);
+      } catch (err) {
+        console.error('Decode recording failed:', err);
+      }
+      if (!wavBlob || !wavBlob.size) {
+        setAudioBlob(null);
+        setError('录音数据无效，请重新录音');
+        return;
+      }
+
+      setAudioBlob(wavBlob);
+      recordingModeRef.current = null;
+      return;
+    }
+
     processorRef.current?.disconnect();
     sourceNodeRef.current?.disconnect();
-    gainNodeRef.current?.disconnect();
     mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+    mediaStreamRef.current = null;
 
     if (audioContextRef.current) {
       await audioContextRef.current.close();
     }
+    audioContextRef.current = null;
+    sourceNodeRef.current = null;
+    processorRef.current = null;
+    setAudioSessionType(null);
 
     const merged = mergeBuffers(recordedBuffersRef.current);
-    if (!merged.length) {
+    if (!merged.length || isSilent(merged)) {
       setAudioBlob(null);
       setError('未录到声音，请检查麦克风权限后重试');
       return;
@@ -256,6 +452,7 @@ export const ProfessionalAssessment = ({
     }
 
     setAudioBlob(wavBlob);
+    recordingModeRef.current = null;
   };
 
   const submitForAssessment = async () => {
@@ -343,6 +540,11 @@ export const ProfessionalAssessment = ({
     if (audioBlob) {
       const url = URL.createObjectURL(audioBlob);
       const audio = new Audio(url);
+      audioPlayerRef.current?.pause();
+      audioPlayerRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+      };
       audio.play();
     }
   };
