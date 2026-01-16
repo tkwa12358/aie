@@ -66,7 +66,7 @@ const buildTencentPayload = (
   seqId: number
 ) => ({
   RefText: text,
-  ServerType: config.server_type ?? 1,
+  ServerType: config.server_type ?? 0,
   EvalMode: config.eval_mode ?? 1,
   VoiceFileType: 3,
   VoiceEncodeType: config.voice_encode_type ?? 1,
