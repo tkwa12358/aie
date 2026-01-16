@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Pencil, Trash2, Crown, Star } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { assessmentApi, AssessmentProvider } from '@/lib/api-client';
+import { assessmentApi, AssessmentProvider, AssessmentProviderAlert } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +60,14 @@ const AdminProfessionalProviders: React.FC = () => {
     queryKey: ['admin-professional-providers'],
     queryFn: async () => {
       const data = await assessmentApi.getProviders();
+      return data;
+    },
+  });
+
+  const { data: alerts = [] } = useQuery({
+    queryKey: ['admin-assessment-alerts'],
+    queryFn: async () => {
+      const data = await assessmentApi.getAlerts();
       return data;
     },
   });
@@ -118,6 +126,36 @@ const AdminProfessionalProviders: React.FC = () => {
       toast({ title: '更新失败', description: error.message, variant: 'destructive' });
     },
   });
+
+  const deleteAlertMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await assessmentApi.deleteAlert(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-assessment-alerts'] });
+      toast({ title: '告警日志已删除' });
+    },
+    onError: (error: any) => {
+      toast({ title: '删除失败', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const formatAlertType = (alert: AssessmentProviderAlert) => {
+    switch (alert.error_type) {
+      case 'insufficient_balance':
+        return { label: '欠费', className: 'bg-red-100 text-red-700' };
+      case 'auth_failed':
+        return { label: '鉴权失败', className: 'bg-orange-100 text-orange-700' };
+      case 'timeout':
+        return { label: '超时', className: 'bg-yellow-100 text-yellow-700' };
+      case 'service_unavailable':
+        return { label: '不可用', className: 'bg-muted text-muted-foreground' };
+      case 'invalid_request':
+        return { label: '请求错误', className: 'bg-purple-100 text-purple-700' };
+      default:
+        return { label: '未知', className: 'bg-muted text-muted-foreground' };
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -390,7 +428,7 @@ const AdminProfessionalProviders: React.FC = () => {
                 <ul className="space-y-1 text-muted-foreground">
                   <li>• 获取位置: 讯飞开放平台 → 应用管理</li>
                   <li>• 需要 AppId 和 APIKey</li>
-                  <li>• 暂不支持</li>
+                  <li>• 支持英文/中文评测</li>
                 </ul>
               </div>
             </div>
@@ -459,6 +497,65 @@ const AdminProfessionalProviders: React.FC = () => {
             ))}
           </TableBody>
         </Table>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>评测告警日志</CardTitle>
+            <CardDescription>
+              记录评测失败原因，包含欠费、鉴权失败、超时等，用于排查服务商可用性问题。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {alerts.length === 0 ? (
+              <div className="text-sm text-muted-foreground">暂无告警日志</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>时间</TableHead>
+                    <TableHead>服务商</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead>说明</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {alerts.map((alert) => {
+                    const typeMeta = formatAlertType(alert);
+                    return (
+                      <TableRow key={alert.id}>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(alert.created_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{alert.provider_name || '-'}</div>
+                          <div className="text-xs text-muted-foreground">{alert.provider_type || '-'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${typeMeta.className}`}>
+                            {typeMeta.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
+                          {alert.error_message}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteAlertMutation.mutate(alert.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

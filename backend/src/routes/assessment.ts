@@ -3,6 +3,7 @@ import { query, queryOne, run, update } from '../config/database';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { v4 as uuidv4 } from 'uuid';
+import { evaluatePronunciation, AssessmentProviderError, shouldFallback } from '../services/assessment';
 
 const router = Router();
 
@@ -125,6 +126,27 @@ router.put('/providers/:id/default', authMiddleware, adminMiddleware, async (req
     }
 });
 
+const recordProviderAlert = (provider: any, error: AssessmentProviderError) => {
+    try {
+        run(
+            `INSERT INTO assessment_provider_alerts
+       (id, provider_id, provider_name, provider_type, error_type, error_message, raw_response)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+                uuidv4(),
+                provider?.id || null,
+                provider?.name || null,
+                provider?.provider_type || null,
+                error.type,
+                error.message,
+                error.details || null
+            ]
+        );
+    } catch (err) {
+        console.error('Record assessment alert failed:', err);
+    }
+};
+
 /**
  * POST /assessment/evaluate - 发音评测
  */
@@ -142,21 +164,55 @@ router.post('/evaluate', authMiddleware, async (req: Request, res: Response) => 
             return res.status(402).json({ error: '专业评测额度不足，请兑换授权码' });
         }
 
-        let sql = 'SELECT * FROM professional_assessment_providers WHERE is_active = 1';
-        if (providerId) { sql += ` AND id = '${providerId}'`; }
-        sql += ' ORDER BY is_default DESC, priority DESC LIMIT 1';
+        let providers = query(
+            'SELECT * FROM professional_assessment_providers WHERE is_active = 1 ORDER BY is_default DESC, priority DESC, created_at DESC'
+        );
 
-        const provider = queryOne<any>(sql);
-
-        if (!provider) {
-            return res.status(503).json({ error: '没有可用的评测服务' });
+        if (providerId) {
+            const preferred = queryOne<any>('SELECT * FROM professional_assessment_providers WHERE id = ?', [providerId]);
+            if (preferred) {
+                providers = [preferred, ...providers.filter((item: any) => item.id !== preferred.id)];
+            }
         }
 
-        // 模拟评测结果 (实际需要调用服务商 API)
-        const result = {
-            pronunciationScore: 85, accuracyScore: 88, fluencyScore: 82, completenessScore: 90, overallScore: 86,
-            words: [], feedback: '发音良好', duration: 5
-        };
+        if (!providers.length) {
+            return res.status(503).json({ error: '没有可用的评测服务', billed: false });
+        }
+
+        let result = null;
+        let usedProvider: any = null;
+        let lastError: AssessmentProviderError | null = null;
+
+        for (const provider of providers) {
+            try {
+                result = await evaluatePronunciation(provider, {
+                    text,
+                    audioData,
+                    language: 'en-US'
+                });
+                usedProvider = provider;
+                break;
+            } catch (error: any) {
+                const normalizedError = error instanceof AssessmentProviderError
+                    ? error
+                    : new AssessmentProviderError('unknown', error?.message || '评测服务调用失败');
+                recordProviderAlert(provider, normalizedError);
+                lastError = normalizedError;
+                if (!shouldFallback(normalizedError)) {
+                    return res.status(500).json({
+                        error: normalizedError.message || '评测服务调用失败',
+                        billed: false
+                    });
+                }
+            }
+        }
+
+        if (!result || !usedProvider) {
+            return res.status(503).json({
+                error: '服务暂时不可用',
+                billed: false
+            });
+        }
 
         const assessmentId = uuidv4();
         const durationSeconds = result.duration || 10;
@@ -169,7 +225,7 @@ router.post('/evaluate', authMiddleware, async (req: Request, res: Response) => 
         pronunciation_score, accuracy_score, fluency_score, completeness_score, overall_score,
         words_result, feedback, duration_seconds, minutes_charged, is_billed)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-            [assessmentId, userId, videoId || null, text, provider.id, provider.name,
+            [assessmentId, userId, videoId || null, text, usedProvider.id, usedProvider.name,
                 result.pronunciationScore, result.accuracyScore, result.fluencyScore, result.completenessScore, result.overallScore,
                 JSON.stringify(result.words || []), result.feedback || null, durationSeconds, minutesCharged]
         );
@@ -192,11 +248,44 @@ router.post('/evaluate', authMiddleware, async (req: Request, res: Response) => 
             remaining_seconds: remainingSeconds,
             billed: true,
             minutesCharged,
-            provider: provider.name
+            provider: usedProvider.name
         });
     } catch (error) {
         console.error('Evaluate error:', error);
-        res.status(500).json({ error: '评测服务错误' });
+        res.status(500).json({ error: '评测服务错误', billed: false });
+    }
+});
+
+/**
+ * GET /assessment/alerts - 获取评测服务商告警日志 (管理员)
+ */
+router.get('/alerts', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const { limit = '50', offset = '0' } = req.query;
+        const alerts = query(
+            `SELECT * FROM assessment_provider_alerts
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+            [parseInt(limit as string, 10), parseInt(offset as string, 10)]
+        );
+        res.json(alerts);
+    } catch (error) {
+        console.error('Get assessment alerts error:', error);
+        res.status(500).json({ error: '获取告警日志失败' });
+    }
+});
+
+/**
+ * DELETE /assessment/alerts/:id - 删除评测服务商告警日志 (管理员)
+ */
+router.delete('/alerts/:id', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        update('DELETE FROM assessment_provider_alerts WHERE id = ?', [id]);
+        res.json({ message: '告警日志已删除' });
+    } catch (error) {
+        console.error('Delete assessment alert error:', error);
+        res.status(500).json({ error: '删除告警日志失败' });
     }
 });
 

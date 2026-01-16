@@ -227,6 +227,17 @@ export interface ProfessionalAssessment {
   created_at: string;
 }
 
+export interface AssessmentProviderAlert {
+  id: string;
+  provider_id: string | null;
+  provider_name: string | null;
+  provider_type: string | null;
+  error_type: string;
+  error_message: string;
+  raw_response: string | null;
+  created_at: string;
+}
+
 export interface AssessmentRequest {
   text: string;
   audioData: string; // Base64编码的音频数据

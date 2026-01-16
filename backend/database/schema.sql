@@ -197,6 +197,19 @@ CREATE TABLE IF NOT EXISTS professional_assessments (
     FOREIGN KEY (provider_id) REFERENCES professional_assessment_providers(id) ON DELETE SET NULL
 );
 
+-- 评测服务商告警日志
+CREATE TABLE IF NOT EXISTS assessment_provider_alerts (
+    id TEXT PRIMARY KEY,
+    provider_id TEXT,
+    provider_name TEXT,
+    provider_type TEXT,
+    error_type TEXT NOT NULL,
+    error_message TEXT NOT NULL,
+    raw_response TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (provider_id) REFERENCES professional_assessment_providers(id) ON DELETE SET NULL
+);
+
 -- ============================================================================
 -- 授权和配置相关表
 -- ============================================================================
@@ -306,6 +319,8 @@ CREATE INDEX IF NOT EXISTS idx_word_book_mastery ON word_book(mastery_level);
 CREATE INDEX IF NOT EXISTS idx_professional_assessments_user ON professional_assessments(user_id);
 CREATE INDEX IF NOT EXISTS idx_professional_assessments_video ON professional_assessments(video_id);
 CREATE INDEX IF NOT EXISTS idx_professional_assessments_created ON professional_assessments(created_at);
+CREATE INDEX IF NOT EXISTS idx_assessment_alerts_created ON assessment_provider_alerts(created_at);
+CREATE INDEX IF NOT EXISTS idx_assessment_alerts_provider ON assessment_provider_alerts(provider_id);
 
 -- 授权码索引
 CREATE INDEX IF NOT EXISTS idx_auth_codes_code ON auth_codes(code);
@@ -394,8 +409,9 @@ ANALYZE;
 - learning_progress                  学习进度
 - word_cache                         全局单词缓存
 - word_book                          用户单词本
-- professional_assessment_providers  专业评测服务商
-- professional_assessments           专业评测记录
+-- professional_assessment_providers  专业评测服务商
+-- professional_assessments           专业评测记录
+-- assessment_provider_alerts         评测服务商告警日志
 - auth_codes                         授权码
 - translation_providers              翻译服务商
 - user_statistics                    用户统计

@@ -119,6 +119,17 @@ export interface AssessmentProvider {
     priority: number;
 }
 
+export interface AssessmentProviderAlert {
+    id: string;
+    provider_id: string | null;
+    provider_name: string | null;
+    provider_type: string | null;
+    error_type: string;
+    error_message: string;
+    raw_response: string | null;
+    created_at: string;
+}
+
 export interface TranslationProvider {
     id: string;
     name: string;
@@ -551,6 +562,16 @@ export const assessmentApi = {
 
     async getHistory(limit = 10, offset = 0) {
         const { data } = await api.get('/assessment/history', { params: { limit, offset } });
+        return data;
+    },
+
+    async getAlerts(limit = 50, offset = 0): Promise<AssessmentProviderAlert[]> {
+        const { data } = await api.get('/assessment/alerts', { params: { limit, offset } });
+        return data;
+    },
+
+    async deleteAlert(id: string) {
+        const { data } = await api.delete(`/assessment/alerts/${id}`);
         return data;
     }
 };

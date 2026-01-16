@@ -301,6 +301,19 @@ function createTables(): void {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS assessment_provider_alerts (
+      id TEXT PRIMARY KEY,
+      provider_id TEXT,
+      provider_name TEXT,
+      provider_type TEXT,
+      error_type TEXT NOT NULL,
+      error_message TEXT NOT NULL,
+      raw_response TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS translation_providers (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -522,4 +535,3 @@ export function batchUpsertWords(words: Array<{
 
 export { db };
 export default db;
-
