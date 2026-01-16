@@ -138,6 +138,7 @@ playwright/.cache/
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
 
 # Windows
 Thumbs.db
@@ -176,3 +177,4 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+scripts/update_subtitles.py

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { appendErrorLog } from '../utils/error-log';
 
 /**
  * 自定义错误类
@@ -23,6 +24,16 @@ export function errorHandler(
     next: NextFunction
 ) {
     console.error('Error:', err);
+    void appendErrorLog({
+        timestamp: new Date().toISOString(),
+        type: 'UNHANDLED_ERROR',
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+        path: req.originalUrl,
+        method: req.method,
+        requestId: req.headers['x-request-id']
+    });
 
     // 如果是自定义的 AppError
     if (err instanceof AppError) {

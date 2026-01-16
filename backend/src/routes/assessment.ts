@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { v4 as uuidv4 } from 'uuid';
 import { evaluatePronunciation, AssessmentProviderError, shouldFallback } from '../services/assessment';
+import { appendErrorLog } from '../utils/error-log';
 
 const router = Router();
 
@@ -197,6 +198,18 @@ router.post('/evaluate', authMiddleware, async (req: Request, res: Response) => 
                     ? error
                     : new AssessmentProviderError('unknown', error?.message || '评测服务调用失败');
                 recordProviderAlert(provider, normalizedError);
+                void appendErrorLog({
+                    timestamp: new Date().toISOString(),
+                    type: 'ASSESSMENT_PROVIDER_ERROR',
+                    providerId: provider?.id || null,
+                    providerName: provider?.name || null,
+                    providerType: provider?.provider_type || null,
+                    errorType: normalizedError.type,
+                    errorMessage: normalizedError.message,
+                    errorDetails: normalizedError.details || null,
+                    requestId: req.headers['x-request-id'],
+                    userId
+                });
                 lastError = normalizedError;
                 if (!shouldFallback(normalizedError)) {
                     return res.status(500).json({
@@ -252,6 +265,14 @@ router.post('/evaluate', authMiddleware, async (req: Request, res: Response) => 
         });
     } catch (error) {
         console.error('Evaluate error:', error);
+        void appendErrorLog({
+            timestamp: new Date().toISOString(),
+            type: 'ASSESSMENT_EVALUATE_ERROR',
+            errorMessage: (error as Error)?.message || '评测服务错误',
+            errorStack: (error as Error)?.stack,
+            requestId: req.headers['x-request-id'],
+            userId: req.user?.userId || null
+        });
         res.status(500).json({ error: '评测服务错误', billed: false });
     }
 });

@@ -15,7 +15,7 @@ const buildTencentHeaders = (provider: any, payload: any, secretId: string, secr
   const host = new URL(buildTencentEndpoint(provider)).host;
   const service = 'soe';
   const action = 'TransmitOralProcessWithInit';
-  const version = '2019-03-04';
+  const version = '2018-07-24';
   const timestamp = Math.floor(Date.now() / 1000);
   const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
 
@@ -64,7 +64,8 @@ const buildTencentPayload = (text: string, audioBase64: string, config: any) => 
   EvalMode: config.eval_mode ?? 1,
   VoiceFileType: 'wav',
   VoiceFileData: audioBase64,
-  ScoreCoeff: config.score_coeff ?? 1.0
+  ScoreCoeff: config.score_coeff ?? 1.0,
+  IsEnd: 1
 });
 
 export const evaluateWithTencent = async (provider: any, payload: AssessmentRequest): Promise<AssessmentResult> => {
