@@ -14,7 +14,6 @@ const hmacSha256 = (key: Buffer | string, data: string) =>
 const buildTencentHeaders = (provider: any, payload: any, secretId: string, secretKey: string) => {
   const host = new URL(buildTencentEndpoint(provider)).host;
   const service = 'soe';
-  const region = provider.region || 'ap-guangzhou';
   const action = 'TransmitOralProcessWithInit';
   const version = '2019-03-04';
   const timestamp = Math.floor(Date.now() / 1000);
@@ -56,7 +55,6 @@ const buildTencentHeaders = (provider: any, payload: any, secretId: string, secr
     'X-TC-Action': action,
     'X-TC-Version': version,
     'X-TC-Timestamp': timestamp.toString(),
-    'X-TC-Region': region
   };
 };
 
