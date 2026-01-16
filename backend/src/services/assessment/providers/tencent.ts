@@ -69,6 +69,8 @@ const buildTencentPayload = (
   ServerType: config.server_type ?? 1,
   EvalMode: config.eval_mode ?? 1,
   VoiceFileType: 3,
+  VoiceEncodeType: config.voice_encode_type ?? 1,
+  WorkMode: config.work_mode ?? 1,
   UserVoiceData: audioBase64,
   ScoreCoeff: config.score_coeff ?? 1.0,
   IsEnd: 1,

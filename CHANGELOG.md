@@ -12,7 +12,7 @@
 - **移动端顶栏遮挡**: 为页面预留顶栏安全空间并调整粘性区域偏移，避免内容被遮挡（预留高度调至 40px）
 - **移动端字幕悬浮条**: 移除播放时的黑色悬浮字幕条，避免遮挡视频与列表
 - **专业评测服务**: 接入真实评测调用与自动降级，新增服务商告警日志与后台删除功能
-- **腾讯 SOE 请求**: 移除 `X-TC-Region` 请求头并补齐 `IsEnd`、`SessionId`、`SeqId`、`UserVoiceData`、`VoiceFileType=3`、`X-TC-Version=2018-07-24`
+- **腾讯 SOE 请求**: 移除 `X-TC-Region` 请求头并补齐 `IsEnd`、`SessionId`、`SeqId`、`UserVoiceData`、`VoiceFileType=3`、`VoiceEncodeType`、`WorkMode`、`X-TC-Version=2018-07-24`
 - **错误日志落盘**: 评测相关错误写入 `backend/logs/error.log`，方便后台实时监控
 
 ## [2.0.0] - 2026-01-09
