@@ -58,14 +58,22 @@ const buildTencentHeaders = (provider: any, payload: any, secretId: string, secr
   };
 };
 
-const buildTencentPayload = (text: string, audioBase64: string, config: any) => ({
+const buildTencentPayload = (
+  text: string,
+  audioBase64: string,
+  config: any,
+  sessionId: string,
+  seqId: number
+) => ({
   RefText: text,
   ServerType: config.server_type ?? 1,
   EvalMode: config.eval_mode ?? 1,
-  VoiceFileType: 'wav',
-  VoiceFileData: audioBase64,
+  VoiceFileType: 3,
+  UserVoiceData: audioBase64,
   ScoreCoeff: config.score_coeff ?? 1.0,
-  IsEnd: 1
+  IsEnd: 1,
+  SessionId: sessionId,
+  SeqId: seqId
 });
 
 export const evaluateWithTencent = async (provider: any, payload: AssessmentRequest): Promise<AssessmentResult> => {
@@ -79,7 +87,9 @@ export const evaluateWithTencent = async (provider: any, payload: AssessmentRequ
 
   const audioBuffer = decodeBase64Audio(payload.audioData);
   const duration = getWavDurationSeconds(audioBuffer) || undefined;
-  const requestPayload = buildTencentPayload(payload.text, payload.audioData, config);
+  const sessionId = crypto.randomUUID();
+  const seqId = 1;
+  const requestPayload = buildTencentPayload(payload.text, payload.audioData, config, sessionId, seqId);
   const headers = buildTencentHeaders(provider, requestPayload, secretId, secretKey);
 
   try {
