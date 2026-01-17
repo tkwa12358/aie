@@ -179,11 +179,21 @@ export const evaluateWithTencent = async (provider: any, payload: AssessmentRequ
       fluencyScore: data.PronFluency || 0,
       completenessScore: data.PronCompletion || 0,
       overallScore: data.SuggestedScore || 0,
-      words: (data.Words || []).map((word: any) => ({
-        word: word.Word || '',
-        accuracy_score: word.PronAccuracy || 0,
-        error_type: word.Pronunciation?.ErrorType
-      })),
+      words: (data.Words || []).map((word: any) => {
+        const wordScore = word.PronAccuracy || 0;
+        return {
+          word: word.Word || '',
+          accuracy_score: wordScore,
+          fluency_score: word.PronFluency,
+          error_type: word.Pronunciation?.ErrorType,
+          // 仅当单词分数 < 85 时提取音素
+          phonemes: wordScore < 85 ? (word.PhoneInfos || []).map((p: any) => ({
+            phoneme: p.Phone || '',
+            accuracy_score: p.PronAccuracy || 0,
+            is_correct: (p.PronAccuracy || 0) >= 60
+          })) : undefined
+        };
+      }),
       feedback: data.Feedback || undefined,
       duration
     };

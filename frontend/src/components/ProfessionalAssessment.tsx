@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Mic, Square, Loader2, Volume2, Crown, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,14 +16,19 @@ interface ProfessionalAssessmentProps {
   onSuccess?: (score: number) => void;
 }
 
+interface PhonemeScore {
+  phoneme: string;
+  accuracy_score: number;
+  is_correct: boolean;
+  error_type?: 'missing' | 'extra' | 'mispronounced' | 'replaced';
+}
+
 interface WordScore {
   word: string;
   accuracy_score: number;
+  fluency_score?: number;
   error_type?: string;
-  phonemes?: Array<{
-    phoneme: string;
-    score: number;
-  }>;
+  phonemes?: PhonemeScore[];
 }
 
 interface AssessmentResult {
@@ -555,12 +559,6 @@ export const ProfessionalAssessment = ({
     return 'text-red-600';
   };
 
-  const getWordBgColor = (score: number) => {
-    if (score >= 80) return 'bg-green-100 border-green-500 text-green-800';
-    if (score >= 60) return 'bg-yellow-100 border-yellow-500 text-yellow-800';
-    return 'bg-red-100 border-red-500 text-red-800';
-  };
-
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg border-4 border-primary bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto">
@@ -645,80 +643,95 @@ export const ProfessionalAssessment = ({
         )}
 
         {/* Results */}
-        {result && (
-          <div className="space-y-4 mb-6">
-            {/* Score Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="border-2 border-primary p-4 text-center bg-primary text-primary-foreground">
-                <p className="text-sm opacity-80">总分</p>
-                <p className="text-4xl font-bold">
-                  {result.overall_score}
-                </p>
-                <Progress value={result.overall_score} className="mt-2" />
-              </div>
-              <div className="border-2 border-foreground p-4 text-center">
-                <p className="text-sm text-muted-foreground">发音准确</p>
-                <p className={cn("text-3xl font-bold", getScoreColor(result.pronunciation_score))}>
-                  {result.pronunciation_score}
-                </p>
-                <Progress value={result.pronunciation_score} className="mt-2" />
-              </div>
-              <div className="border-2 border-foreground p-4 text-center">
-                <p className="text-sm text-muted-foreground">流利度</p>
-                <p className={cn("text-3xl font-bold", getScoreColor(result.fluency_score))}>
-                  {result.fluency_score}
-                </p>
-                <Progress value={result.fluency_score} className="mt-2" />
-              </div>
-              <div className="border-2 border-foreground p-4 text-center">
-                <p className="text-sm text-muted-foreground">完整度</p>
-                <p className={cn("text-3xl font-bold", getScoreColor(result.completeness_score))}>
-                  {result.completeness_score}
-                </p>
-                <Progress value={result.completeness_score} className="mt-2" />
-              </div>
-            </div>
+        {result && (() => {
+          // 过滤出问题单词（accuracy_score < 85）
+          const problemWords = (result.words_result || []).filter(w => w.accuracy_score < 85);
 
-            {/* Feedback */}
-            {result.feedback && (
-              <div className="border-2 border-foreground p-4">
-                <p className="text-sm text-muted-foreground mb-1">专业反馈：</p>
-                <p className="text-sm">{result.feedback}</p>
-              </div>
-            )}
-
-            {/* Word-level scores */}
-            {result.words_result && result.words_result.length > 0 && (
-              <div className="border-2 border-foreground p-4">
-                <p className="text-sm text-muted-foreground mb-2">单词评分：</p>
-                <div className="flex flex-wrap gap-2">
-                  {result.words_result.map((ws, idx) => (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "px-3 py-2 text-sm border-2 rounded",
-                        getWordBgColor(ws.accuracy_score)
-                      )}
-                    >
-                      <div className="font-medium">{ws.word}</div>
-                      <div className="text-xs opacity-80">{ws.accuracy_score}分</div>
-                      {ws.error_type && ws.error_type !== 'None' && (
-                        <div className="text-xs">{ws.error_type}</div>
-                      )}
-                    </div>
-                  ))}
+          return (
+            <div className="space-y-4 mb-6">
+              {/* 精简头部：总分 + 错误词数 */}
+              <div className="flex items-center gap-4 border-2 border-primary p-3 bg-primary/5">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">总分</p>
+                  <p className={cn("text-3xl font-bold", getScoreColor(result.overall_score))}>
+                    {result.overall_score}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">问题单词</p>
+                  <p className={cn("text-xl font-bold", problemWords.length > 0 ? 'text-red-600' : 'text-green-600')}>
+                    {problemWords.length} 个
+                  </p>
                 </div>
               </div>
-            )}
 
-            {/* Billing info */}
-            {result.billed && (
-              <p className="text-xs text-muted-foreground text-center">
-                已扣除 {(result.seconds_used / 60).toFixed(1)} 分钟，剩余 {(result.remaining_seconds / 60).toFixed(1)} 分钟
-              </p>
-            )}
-          </div>
-        )}
+              {/* 问题单词及音素详情 */}
+              {problemWords.length > 0 && (
+                <div className="border-2 border-foreground p-3">
+                  <p className="text-sm text-muted-foreground mb-2">需要改进的单词：</p>
+                  <div className="space-y-2">
+                    {problemWords.map((ws, idx) => (
+                      <div
+                        key={idx}
+                        className="border border-red-300 bg-red-50 rounded p-2"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-red-800">"{ws.word}"</span>
+                          <span className="text-sm text-red-600">{ws.accuracy_score}分</span>
+                        </div>
+                        {/* 音素详情 */}
+                        {ws.phonemes && ws.phonemes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            <span className="text-xs text-muted-foreground mr-1">音素:</span>
+                            {ws.phonemes.map((p, pIdx) => (
+                              <span
+                                key={pIdx}
+                                className={cn(
+                                  "text-xs px-1.5 py-0.5 rounded border",
+                                  p.is_correct
+                                    ? "bg-green-100 border-green-400 text-green-700"
+                                    : "bg-red-100 border-red-400 text-red-700 font-medium"
+                                )}
+                                title={`${p.phoneme}: ${p.accuracy_score}分${p.error_type ? ` (${p.error_type})` : ''}`}
+                              >
+                                [{p.phoneme}]{p.is_correct ? '✓' : '✗'}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {ws.error_type && ws.error_type !== 'None' && (
+                          <p className="text-xs text-red-500 mt-1">{ws.error_type}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 所有单词都正确时的提示 */}
+              {problemWords.length === 0 && result.words_result && result.words_result.length > 0 && (
+                <div className="border-2 border-green-500 bg-green-50 p-3 text-center">
+                  <p className="text-green-700 font-medium">所有单词发音都很棒！</p>
+                </div>
+              )}
+
+              {/* Feedback */}
+              {result.feedback && (
+                <div className="border border-foreground/30 p-2 text-sm">
+                  <span className="text-muted-foreground">反馈：</span>
+                  <span>{result.feedback}</span>
+                </div>
+              )}
+
+              {/* Billing info */}
+              {result.billed && (
+                <p className="text-xs text-muted-foreground text-center">
+                  已扣除 {(result.seconds_used / 60).toFixed(1)} 分钟，剩余 {(result.remaining_seconds / 60).toFixed(1)} 分钟
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Actions */}
         <div className="flex gap-4">

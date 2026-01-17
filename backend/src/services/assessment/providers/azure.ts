@@ -54,11 +54,20 @@ export const evaluateWithAzure = async (provider: any, payload: AssessmentReques
       fluencyScore: assessment.FluencyScore || 0,
       completenessScore: assessment.CompletenessScore || 0,
       overallScore: assessment.PronunciationScore || 0,
-      words: words.map((word: any) => ({
-        word: word.Word || '',
-        accuracy_score: word.PronunciationAssessment?.AccuracyScore || 0,
-        error_type: word.PronunciationAssessment?.ErrorType
-      })),
+      words: words.map((word: any) => {
+        const wordScore = word.PronunciationAssessment?.AccuracyScore || 0;
+        return {
+          word: word.Word || '',
+          accuracy_score: wordScore,
+          error_type: word.PronunciationAssessment?.ErrorType,
+          // 仅当单词分数 < 85 时提取音素
+          phonemes: wordScore < 85 ? (word.Phonemes || []).map((p: any) => ({
+            phoneme: p.Phoneme || '',
+            accuracy_score: p.AccuracyScore || 0,
+            is_correct: (p.AccuracyScore || 0) >= 60
+          })) : undefined
+        };
+      }),
       feedback: assessment.ProsodyScore ? `韵律分: ${assessment.ProsodyScore}` : undefined,
       duration
     };

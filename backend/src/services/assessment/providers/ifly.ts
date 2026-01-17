@@ -34,6 +34,14 @@ const buildIflyParam = (text: string, sampleRate: number, config: any) => {
   return Buffer.from(JSON.stringify(payload)).toString('base64');
 };
 
+// 讯飞错误类型映射
+const mapIflyDpMessage = (dp: number): 'missing' | 'extra' | 'replaced' | undefined => {
+  if (dp === 16) return 'missing';
+  if (dp === 32) return 'extra';
+  if (dp === 128) return 'replaced';
+  return undefined;
+};
+
 const mapIflyResult = (data: any): AssessmentResult => {
   const result = data?.data || {};
   const overall = result.total_score || result.score || 0;
@@ -45,11 +53,25 @@ const mapIflyResult = (data: any): AssessmentResult => {
     fluencyScore: result.fluency || overall,
     completenessScore: result.integrity || overall,
     overallScore: overall,
-    words: words.map((word: any) => ({
-      word: word.word || '',
-      accuracy_score: word.score || 0,
-      error_type: word.error_type
-    })),
+    words: words.map((word: any) => {
+      const wordScore = word.score || 0;
+      // 扁平化音节中的音素
+      const phonemes = wordScore < 85 ? (word.syll || []).flatMap((syll: any) =>
+        (syll.phone || []).map((p: any) => ({
+          phoneme: p.content || '',
+          accuracy_score: p.phone_score || 0,
+          is_correct: (p.phone_score || 0) >= 60,
+          error_type: mapIflyDpMessage(p.dp_message)
+        }))
+      ) : undefined;
+
+      return {
+        word: word.word || '',
+        accuracy_score: wordScore,
+        error_type: word.error_type,
+        phonemes
+      };
+    }),
     feedback: result.message || undefined
   };
 };
