@@ -4,6 +4,61 @@ import { AssessmentProviderError, AssessmentRequest, AssessmentResult } from '..
 import { decodeBase64Audio, getWavDurationSeconds } from '../audio';
 import { parseProviderConfig, resolveProviderKey, resolveProviderSecret } from '../provider-config';
 
+// 将 WAV 音频重采样到 16kHz
+const resampleWavTo16k = (buffer: Buffer): Buffer => {
+  // 解析原始 WAV
+  const originalSampleRate = buffer.readUInt32LE(24);
+  if (originalSampleRate === 16000) return buffer; // 已经是 16kHz，无需处理
+
+  // 找到 data chunk
+  let dataOffset = 12;
+  while (dataOffset + 8 <= buffer.length) {
+    if (buffer.toString('ascii', dataOffset, dataOffset + 4) === 'data') break;
+    dataOffset += 8 + buffer.readUInt32LE(dataOffset + 4);
+  }
+  const dataStart = dataOffset + 8;
+  const dataSize = buffer.readUInt32LE(dataOffset + 4);
+  const numSamples = dataSize / 2;
+
+  // 读取样本
+  const samples = new Float32Array(numSamples);
+  for (let i = 0; i < numSamples; i++) {
+    samples[i] = buffer.readInt16LE(dataStart + i * 2) / 32768;
+  }
+
+  // 线性插值重采样到 16kHz
+  const ratio = originalSampleRate / 16000;
+  const newLength = Math.floor(numSamples / ratio);
+  const resampled = new Float32Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    const srcIdx = i * ratio;
+    const srcFloor = Math.floor(srcIdx);
+    const t = srcIdx - srcFloor;
+    resampled[i] = samples[srcFloor] * (1 - t) + samples[Math.min(srcFloor + 1, numSamples - 1)] * t;
+  }
+
+  // 编码为 16kHz WAV
+  const wavBuffer = Buffer.alloc(44 + newLength * 2);
+  wavBuffer.write('RIFF', 0);
+  wavBuffer.writeUInt32LE(36 + newLength * 2, 4);
+  wavBuffer.write('WAVE', 8);
+  wavBuffer.write('fmt ', 12);
+  wavBuffer.writeUInt32LE(16, 16);
+  wavBuffer.writeUInt16LE(1, 20);
+  wavBuffer.writeUInt16LE(1, 22);
+  wavBuffer.writeUInt32LE(16000, 24);
+  wavBuffer.writeUInt32LE(32000, 28);
+  wavBuffer.writeUInt16LE(2, 32);
+  wavBuffer.writeUInt16LE(16, 34);
+  wavBuffer.write('data', 36);
+  wavBuffer.writeUInt32LE(newLength * 2, 40);
+  for (let i = 0; i < newLength; i++) {
+    wavBuffer.writeInt16LE(Math.floor(Math.max(-1, Math.min(1, resampled[i])) * 32767), 44 + i * 2);
+  }
+
+  return wavBuffer;
+};
+
 const buildTencentEndpoint = (provider: any) => provider.api_endpoint || 'https://soe.tencentcloudapi.com';
 
 const sha256 = (data: string) => crypto.createHash('sha256').update(data).digest('hex');
@@ -68,7 +123,7 @@ const buildTencentPayload = (
   RefText: text,
   ServerType: config.server_type ?? 0,
   EvalMode: config.eval_mode ?? 1,
-  VoiceFileType: 3,
+  VoiceFileType: 2,
   VoiceEncodeType: config.voice_encode_type ?? 1,
   WorkMode: config.work_mode ?? 1,
   UserVoiceData: audioBase64,
@@ -89,9 +144,14 @@ export const evaluateWithTencent = async (provider: any, payload: AssessmentRequ
 
   const audioBuffer = decodeBase64Audio(payload.audioData);
   const duration = getWavDurationSeconds(audioBuffer) || undefined;
+
+  // 重采样到 16kHz（腾讯 SOE 要求）
+  const resampledBuffer = resampleWavTo16k(audioBuffer);
+  const resampledBase64 = resampledBuffer.toString('base64');
+
   const sessionId = crypto.randomUUID();
   const seqId = 1;
-  const requestPayload = buildTencentPayload(payload.text, payload.audioData, config, sessionId, seqId);
+  const requestPayload = buildTencentPayload(payload.text, resampledBase64, config, sessionId, seqId);
   const headers = buildTencentHeaders(provider, requestPayload, secretId, secretKey);
 
   try {
