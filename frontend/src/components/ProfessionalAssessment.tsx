@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AuthCodeDialog } from '@/components/AuthCodeDialog';
 import { MicPermissionGuide } from '@/components/MicPermissionGuide';
+import { PhonemeHint } from '@/components/PhonemeHint';
 
 interface ProfessionalAssessmentProps {
   originalText: string;
@@ -698,6 +699,10 @@ export const ProfessionalAssessment = ({
                               </span>
                             ))}
                           </div>
+                        )}
+                        {/* 音素发音提示 */}
+                        {ws.phonemes && ws.phonemes.length > 0 && (
+                          <PhonemeHint phonemes={ws.phonemes} />
                         )}
                         {ws.error_type && ws.error_type !== 'None' && (
                           <p className="text-xs text-red-500 mt-1">{ws.error_type}</p>
