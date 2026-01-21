@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { categoriesApi, VideoCategory } from '@/lib/api-client';
-import { Upload } from 'lucide-react';
+import { Upload, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -9,6 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 interface CategoryTabsProps {
     selectedCategory: string | null;
@@ -22,6 +23,7 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({
     onLocalLearningClick,
 }) => {
     const [categories, setCategories] = useState<VideoCategory[]>([]);
+    const { canInstall, showInstallPrompt } = usePWAInstall();
 
     useEffect(() => {
         fetchCategories();
@@ -78,6 +80,18 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({
                 <Upload className="h-4 w-4" />
                 本地学习
             </Button>
+
+            {/* 添加到桌面按钮 - 仅在可安装时显示 */}
+            {canInstall && (
+                <Button
+                    variant="outline"
+                    onClick={showInstallPrompt}
+                    className="h-10 px-4 rounded-xl border-dashed border-primary/50 hover:border-primary bg-primary/5 text-primary hover:bg-primary/10 flex items-center gap-2"
+                >
+                    <Smartphone className="h-4 w-4" />
+                    添加到桌面
+                </Button>
+            )}
         </div>
     );
 };

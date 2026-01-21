@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PWAInstallProvider } from "@/hooks/usePWAInstall";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import Index from "./pages/Index";
@@ -82,9 +83,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
-            <InstallPrompt />
-            <UpdatePrompt />
+            <PWAInstallProvider>
+              <AppRoutes />
+              <InstallPrompt />
+              <UpdatePrompt />
+            </PWAInstallProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
