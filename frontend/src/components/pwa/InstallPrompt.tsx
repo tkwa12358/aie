@@ -8,11 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Download, Smartphone, MoreHorizontal, AlertCircle } from 'lucide-react';
+import { Download, Smartphone, MoreHorizontal, MoreVertical, AlertCircle } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export function InstallPrompt() {
-  const { isIOS, isStandalone, isPromptVisible, setPromptVisible, handleInstall } = usePWAInstall();
+  const { isIOS, isAndroid, isStandalone, isPromptVisible, setPromptVisible } = usePWAInstall();
 
   const handleClose = useCallback(() => {
     setPromptVisible(false);
@@ -57,59 +57,97 @@ export function InstallPrompt() {
           </div>
         </div>
 
-        {isIOS ? (
+        {isIOS && (
           <div className="rounded-lg bg-muted p-4 text-sm space-y-3">
             <p className="font-medium">iPhone/iPad 安装步骤：</p>
             <ol className="space-y-3 text-muted-foreground">
               <li className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">1</span>
                 <span>
-                  点击 Safari 浏览器右下角的{' '}
+                  点击 Safari 右下角的
                   <MoreHorizontal className="h-4 w-4 inline-block align-text-bottom mx-0.5" />
-                  <span className="font-medium text-foreground">（更多）</span>按钮
-                  <br />
-                  <span className="text-xs">（或点击底部中间的分享按钮）</span>
+                  <span className="font-medium text-foreground">按钮</span>
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">2</span>
                 <span>
-                  在弹出菜单中向上滑动，找到并点击{' '}
-                  <span className="font-medium text-foreground">"添加到主屏幕"</span>
+                  在弹出菜单中，点击
+                  <span className="font-medium text-foreground">"共享"</span>
+                  按钮
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">3</span>
                 <span>
-                  点击右上角{' '}
+                  在共享菜单底部，点击右下角的
+                  <span className="font-medium text-foreground">"更多"</span>
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">4</span>
+                <span>
+                  找到并点击
+                  <span className="font-medium text-foreground">"添加到主屏幕"</span>
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">5</span>
+                <span>
+                  点击右上角
                   <span className="font-medium text-foreground">"添加"</span>
-                  {' '}完成安装
+                  完成安装
                 </span>
               </li>
             </ol>
             <div className="flex items-center gap-2 pt-2 text-amber-600 dark:text-amber-400">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              <span className="text-xs">请确保使用 Safari 浏览器打开本页面</span>
+              <span className="text-xs">请使用 Safari 浏览器打开本页面</span>
             </div>
           </div>
-        ) : null}
+        )}
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          {isIOS ? (
-            <Button onClick={handleClose} className="w-full">
-              我知道了
-            </Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={handleClose} className="flex-1">
-                以后再说
-              </Button>
-              <Button onClick={handleInstall} className="flex-1">
-                <Download className="h-4 w-4 mr-2" />
-                安装应用
-              </Button>
-            </>
-          )}
+        {isAndroid && (
+          <div className="rounded-lg bg-muted p-4 text-sm space-y-3">
+            <p className="font-medium">Android 安装步骤：</p>
+            <ol className="space-y-3 text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">1</span>
+                <span>
+                  点击浏览器右上角的
+                  <MoreVertical className="h-4 w-4 inline-block align-text-bottom mx-0.5" />
+                  <span className="font-medium text-foreground">菜单按钮</span>
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">2</span>
+                <span>
+                  在菜单中找到并点击
+                  <span className="font-medium text-foreground">"添加到主屏幕"</span>
+                  或
+                  <span className="font-medium text-foreground">"安装应用"</span>
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-medium">3</span>
+                <span>
+                  点击
+                  <span className="font-medium text-foreground">"添加"</span>
+                  完成安装
+                </span>
+              </li>
+            </ol>
+            <div className="flex items-center gap-2 pt-2 text-amber-600 dark:text-amber-400">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span className="text-xs">建议使用 Chrome 浏览器</span>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button onClick={handleClose} className="w-full">
+            我知道了
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

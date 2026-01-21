@@ -8,6 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 interface PWAInstallContextType {
   canInstall: boolean;
   isIOS: boolean;
+  isAndroid: boolean;
   isStandalone: boolean;
   showInstallPrompt: () => void;
   isPromptVisible: boolean;
@@ -21,12 +22,17 @@ export function PWAInstallProvider({ children }: { children: ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isPromptVisible, setPromptVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     // 检查是否是 iOS 设备
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
     setIsIOS(ios);
+
+    // 检查是否是 Android 设备
+    const android = /Android/.test(navigator.userAgent);
+    setIsAndroid(android);
 
     // 检查是否已安装为独立应用
     const standalone = window.matchMedia('(display-mode: standalone)').matches ||
@@ -62,14 +68,15 @@ export function PWAInstallProvider({ children }: { children: ReactNode }) {
     setPromptVisible(false);
   }, [deferredPrompt]);
 
-  // 可以安装的条件：未安装 && (有 deferredPrompt 或 是 iOS)
-  const canInstall = !isStandalone && (deferredPrompt !== null || isIOS);
+  // 可以安装的条件：未安装 && (是 iOS 或 是安卓)
+  const canInstall = !isStandalone && (isIOS || isAndroid);
 
   return (
     <PWAInstallContext.Provider
       value={{
         canInstall,
         isIOS,
+        isAndroid,
         isStandalone,
         showInstallPrompt,
         isPromptVisible,
