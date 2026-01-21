@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { BookOpen, Settings, LogOut, Menu, X, Crown, BarChart3, User, Ticket } from 'lucide-react';
+import { BookOpen, Settings, LogOut, Menu, X, Crown, BarChart3, User, Ticket, Download } from 'lucide-react';
 import { useState } from 'react';
 import { AuthCodeDialog } from '@/components/AuthCodeDialog';
 
@@ -59,6 +59,12 @@ export const Header = () => {
               </Link>
               <Link to="/local-learn">
                 <Button variant="ghost" className="rounded-xl hover:bg-accent/50">本地学习</Button>
+              </Link>
+              <Link to="/downloads">
+                <Button variant="ghost" className="rounded-xl hover:bg-accent/50">
+                  <Download className="w-4 h-4 mr-2" />
+                  离线视频
+                </Button>
               </Link>
               <AuthCodeDialog />
               <Link to="/profile">
@@ -124,6 +130,12 @@ export const Header = () => {
                 </Link>
                 <Link to="/local-learn" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start rounded-xl">本地学习</Button>
+                </Link>
+                <Link to="/downloads" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start rounded-xl">
+                    <Download className="w-4 h-4 mr-2" />
+                    离线视频
+                  </Button>
                 </Link>
                 <div onClick={() => setMobileMenuOpen(false)}>
                   <AuthCodeDialog

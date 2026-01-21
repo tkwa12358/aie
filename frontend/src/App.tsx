@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -14,6 +16,7 @@ import WordBook from "./pages/WordBook";
 import Statistics from "./pages/Statistics";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import DownloadManager from "./pages/DownloadManager";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminVideos from "./pages/admin/Videos";
 import AdminCategories from "./pages/admin/Categories";
@@ -55,6 +58,7 @@ const AppRoutes = () => (
     <Route path="/wordbook" element={<ProtectedRoute><WordBook /></ProtectedRoute>} />
     <Route path="/statistics" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+    <Route path="/downloads" element={<ProtectedRoute><DownloadManager /></ProtectedRoute>} />
     <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
     <Route path="/admin/videos" element={<AdminRoute><AdminVideos /></AdminRoute>} />
     <Route path="/admin/categories" element={<AdminRoute><AdminCategories /></AdminRoute>} />
@@ -79,6 +83,8 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />
+            <InstallPrompt />
+            <UpdatePrompt />
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

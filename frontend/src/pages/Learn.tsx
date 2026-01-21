@@ -8,10 +8,11 @@ import { WordLookup } from '@/components/WordLookup';
 import { CategoryTabs } from '@/components/CategoryTabs';
 import { RecentlyLearned } from '@/components/RecentlyLearned';
 import { ActivationDialog } from '@/components/ActivationDialog';
+import { DownloadConfirm } from '@/components/pwa/DownloadConfirm';
 import { Video, Subtitle, videosApi, authCodesApi, parseSRT, parseBilingualSRT, getStorageUrl } from '@/lib/api-client';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
-import { Loader2, ChevronLeft, Clock, CheckCircle2, Languages } from 'lucide-react';
+import { Loader2, ChevronLeft, Clock, CheckCircle2, Languages, Download } from 'lucide-react';
 import { useLearningProgress } from '@/hooks/useLearningProgress';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +43,7 @@ const Learn = () => {
   const [practiceSubtitle, setPracticeSubtitle] = useState<Subtitle | null>(null);
   const [practiceSubtitleIndex, setPracticeSubtitleIndex] = useState<number | null>(null);
   const [lookupWord, setLookupWord] = useState<{ word: string; context: string; contextTranslation: string } | null>(null);
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const lastSaveTimeRef = useRef<number>(0);
 
   // 学习进度追踪
@@ -409,6 +411,7 @@ const Learn = () => {
                       <VideoPlayer
                         ref={playerRef}
                         videoUrl={getStorageUrl(selectedVideo.video_url)}
+                        videoId={typeof selectedVideo.id === 'string' ? parseInt(selectedVideo.id) : selectedVideo.id}
                         subtitles={subtitles}
                         subtitlesCn={subtitlesCn}
                         currentSubtitle={currentSubtitle}
@@ -421,6 +424,7 @@ const Learn = () => {
                           pauseTracking();
                           savePosition(currentTime);
                         }}
+                        onDownloadClick={() => setShowDownloadDialog(true)}
                       />
                     </div>
 
@@ -506,6 +510,26 @@ const Learn = () => {
           setShowActivationDialog(false);
         }}
       />
+
+      {/* 下载确认弹窗 */}
+      {selectedVideo && (
+        <DownloadConfirm
+          isOpen={showDownloadDialog}
+          onClose={() => setShowDownloadDialog(false)}
+          videoId={typeof selectedVideo.id === 'string' ? parseInt(selectedVideo.id) : selectedVideo.id}
+          title={selectedVideo.title}
+          videoUrl={getStorageUrl(selectedVideo.video_url)}
+          subtitleUrls={[
+            selectedVideo.subtitles_en ? getStorageUrl(`/api/subtitles/${selectedVideo.id}/en`) : '',
+            selectedVideo.subtitles_cn ? getStorageUrl(`/api/subtitles/${selectedVideo.id}/cn`) : '',
+          ].filter(Boolean)}
+          thumbnailUrl={selectedVideo.thumbnail_url ? getStorageUrl(selectedVideo.thumbnail_url) : undefined}
+          estimatedSize={selectedVideo.duration ? selectedVideo.duration * 500000 : 50 * 1024 * 1024}
+          onDownloadComplete={() => {
+            setShowDownloadDialog(false);
+          }}
+        />
+      )}
     </>
   );
 };

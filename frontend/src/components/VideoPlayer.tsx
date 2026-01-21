@@ -11,9 +11,10 @@ import {
 import {
   Play, Pause, SkipBack, SkipForward,
   Volume2, VolumeX, RotateCcw,
-  Repeat, Languages
+  Repeat, Languages, Download, CheckCircle, Loader2
 } from 'lucide-react';
 import { Subtitle } from '@/lib/api-client';
+import { isVideoDownloaded, getCachedVideoUrl } from '@/lib/videoDownloadManager';
 
 export interface VideoPlayerRef {
   seek: (time: number) => void;
@@ -24,6 +25,7 @@ export interface VideoPlayerRef {
 
 interface VideoPlayerProps {
   videoUrl: string;
+  videoId?: number;
   subtitles: Subtitle[];
   subtitlesCn?: Subtitle[];
   currentSubtitle: Subtitle | null;
@@ -33,10 +35,12 @@ interface VideoPlayerProps {
   onToggleTranslation?: () => void;
   onPlay?: () => void;
   onPause?: () => void;
+  onDownloadClick?: () => void;
 }
 
 export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   videoUrl,
+  videoId,
   subtitles,
   subtitlesCn,
   currentSubtitle,
@@ -45,7 +49,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   showTranslation = true,
   onToggleTranslation,
   onPlay,
-  onPause
+  onPause,
+  onDownloadClick
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -57,6 +62,38 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [isLooping, setIsLooping] = useState(false);
   const [loopStart, setLoopStart] = useState<number | null>(null);
   const [loopEnd, setLoopEnd] = useState<number | null>(null);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [checkingCache, setCheckingCache] = useState(false);
+  const [effectiveVideoUrl, setEffectiveVideoUrl] = useState(videoUrl);
+
+  // 检查视频是否已下载
+  useEffect(() => {
+    const checkDownloadStatus = async () => {
+      if (videoId) {
+        setCheckingCache(true);
+        try {
+          const downloaded = await isVideoDownloaded(videoId);
+          setIsDownloaded(downloaded);
+
+          if (downloaded) {
+            // 尝试获取缓存的视频 URL
+            const cachedUrl = await getCachedVideoUrl(videoUrl);
+            if (cachedUrl) {
+              setEffectiveVideoUrl(cachedUrl);
+            }
+          } else {
+            setEffectiveVideoUrl(videoUrl);
+          }
+        } catch (error) {
+          console.error('Error checking download status:', error);
+        } finally {
+          setCheckingCache(false);
+        }
+      }
+    };
+
+    checkDownloadStatus();
+  }, [videoId, videoUrl]);
 
   useImperativeHandle(ref, () => ({
     seek: (time: number) => {
@@ -219,7 +256,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       <div className="relative bg-black flex-1 flex items-center justify-center overflow-hidden">
         <video
           ref={videoRef}
-          src={videoUrl}
+          src={effectiveVideoUrl}
           className="w-full h-full object-contain"
           onClick={togglePlay}
           playsInline={true}
@@ -229,6 +266,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           controls={false}
           preload="metadata"
         />
+
+        {/* 已下载标识 */}
+        {isDownloaded && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-green-500/80 rounded-full text-white text-xs">
+            <CheckCircle className="w-3 h-3" />
+            <span>已下载</span>
+          </div>
+        )}
 
         {/* Subtitle Overlay */}
 
@@ -314,6 +359,27 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
               >
                 <Languages className="w-3.5 h-3.5 mr-1" />
                 <span className="hidden sm:inline">{showTranslation ? '中英' : '英文'}</span>
+              </Button>
+            )}
+
+            {/* Download Button */}
+            {onDownloadClick && (
+              <Button
+                variant={isDownloaded ? "secondary" : "ghost"}
+                size="sm"
+                onClick={onDownloadClick}
+                disabled={isDownloaded || checkingCache}
+                className={`h-8 px-2 text-xs ${isDownloaded ? 'text-green-600' : ''}`}
+                title={isDownloaded ? "已下载" : "下载视频"}
+              >
+                {checkingCache ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : isDownloaded ? (
+                  <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                ) : (
+                  <Download className="w-3.5 h-3.5 mr-1" />
+                )}
+                <span className="hidden sm:inline">{isDownloaded ? '已下载' : '下载'}</span>
               </Button>
             )}
 

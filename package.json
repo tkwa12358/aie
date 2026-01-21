@@ -43,7 +43,8 @@
   "author": "AI English Studio Team",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "sharp": "^0.34.5"
   },
   "engines": {
     "node": ">=20.0.0",
