@@ -30,10 +30,6 @@ const Login = () => {
         description: `${error.message || '请检查账号和密码'}`,
       });
     } else {
-      toast({
-        title: '登录成功',
-        description: '欢迎回来！',
-      });
       navigate('/learn');
     }
 
