@@ -94,7 +94,7 @@ export default defineConfig({
                 maxEntries: 10,
                 maxAgeSeconds: 60 * 60 * 24, // 1 天
               },
-              networkTimeoutSeconds: 10,
+              networkTimeoutSeconds: 30,
             },
           },
           {
@@ -107,7 +107,7 @@ export default defineConfig({
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60, // 1 小时
               },
-              networkTimeoutSeconds: 10,
+              networkTimeoutSeconds: 30,
               cacheableResponse: {
                 statuses: [0, 200],
               },
@@ -150,9 +150,6 @@ export default defineConfig({
             },
           },
         ],
-        // 离线回退页面
-        navigateFallback: '/offline.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/uploads\/videos/],
       },
       devOptions: {
         enabled: false, // 开发模式下禁用 PWA
