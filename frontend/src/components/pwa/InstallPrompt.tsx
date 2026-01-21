@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Download, Smartphone, MoreHorizontal, MoreVertical, AlertCircle } from 'lucide-react';
+import { Download, Smartphone, MoreHorizontal, MoreVertical, Menu, AlertCircle } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export function InstallPrompt() {
@@ -117,6 +117,10 @@ export function InstallPrompt() {
                   点击浏览器右上角的
                   <MoreVertical className="h-4 w-4 inline-block align-text-bottom mx-0.5" />
                   <span className="font-medium text-foreground">菜单按钮</span>
+                  <br />
+                  <span className="text-xs">（部分浏览器在底部，点击
+                  <Menu className="h-3 w-3 inline-block align-text-bottom mx-0.5" />
+                  按钮）</span>
                 </span>
               </li>
               <li className="flex items-start gap-2">

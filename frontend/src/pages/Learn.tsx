@@ -410,6 +410,7 @@ const Learn = () => {
                     <div className="glass rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
                       <VideoPlayer
                         ref={playerRef}
+                        hidden={!!practiceSubtitle}
                         videoUrl={getStorageUrl(selectedVideo.video_url)}
                         videoId={typeof selectedVideo.id === 'string' ? parseInt(selectedVideo.id) : selectedVideo.id}
                         subtitles={subtitles}

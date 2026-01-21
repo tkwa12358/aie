@@ -36,6 +36,7 @@ interface VideoPlayerProps {
   onPlay?: () => void;
   onPause?: () => void;
   onDownloadClick?: () => void;
+  hidden?: boolean;  // 控制视频可见性，解决安卓弹窗被视频遮挡问题
 }
 
 export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
@@ -50,7 +51,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   onToggleTranslation,
   onPlay,
   onPause,
-  onDownloadClick
+  onDownloadClick,
+  hidden = false
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -253,7 +255,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   return (
     <div className="w-full h-full flex flex-col">
       {/* Video */}
-      <div className="relative bg-black flex-1 flex items-center justify-center overflow-hidden">
+      <div
+        className="relative bg-black flex-1 flex items-center justify-center overflow-hidden"
+        style={{ visibility: hidden ? 'hidden' : 'visible' }}
+      >
         <video
           ref={videoRef}
           src={effectiveVideoUrl}
