@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Pencil, Crown, Key, Users, Activity } from 'lucide-react';
+import { Pencil, Crown, Key, Users, Activity, Shuffle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi, adminApi } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +57,19 @@ const AdminUsers: React.FC = () => {
     role: 'user',
     professional_voice_minutes: 0,
   });
+  const [newPassword, setNewPassword] = useState('SpeakAI@123');
+  const [passwordError, setPasswordError] = useState('');
+
+  // 生成随机密码
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setNewPassword(password);
+    setPasswordError('');
+  };
 
   const { data: users = [] } = useQuery({
     queryKey: ['admin-users'],
@@ -99,18 +112,20 @@ const AdminUsers: React.FC = () => {
   });
 
   const resetPasswordMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const data = await adminApi.resetUserPassword(userId, 'SpeakAI@123');
+    mutationFn: async ({ userId, password }: { userId: string; password: string }) => {
+      const data = await adminApi.resetUserPassword(userId, password);
       return data;
     },
     onSuccess: () => {
       toast({
         title: '密码已重置',
-        description: '密码已重置为: SpeakAI@123',
+        description: `密码已重置为: ${newPassword}`,
         duration: 5000
       });
       setResetDialogOpen(false);
       setUserToReset(null);
+      setNewPassword('SpeakAI@123');
+      setPasswordError('');
     },
     onError: (error) => {
       toast({ title: '重置失败', description: error.message, variant: 'destructive' });
@@ -133,8 +148,12 @@ const AdminUsers: React.FC = () => {
   };
 
   const confirmReset = () => {
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('密码长度至少6位');
+      return;
+    }
     if (userToReset) {
-      resetPasswordMutation.mutate(userToReset.user_id);
+      resetPasswordMutation.mutate({ userId: userToReset.user_id, password: newPassword });
     }
   };
 
@@ -274,19 +293,53 @@ const AdminUsers: React.FC = () => {
         </Dialog>
 
         {/* 密码重置确认对话框 */}
-        <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <Dialog open={resetDialogOpen} onOpenChange={(open) => {
+          setResetDialogOpen(open);
+          if (!open) {
+            setNewPassword('SpeakAI@123');
+            setPasswordError('');
+          }
+        }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>确认重置密码</DialogTitle>
+              <DialogTitle>重置用户密码</DialogTitle>
               <DialogDescription>
-                您确定要重置用户 {userToReset?.phone || userToReset?.display_name} 的密码吗？
-                <br />
-                重置后的密码将为：<span className="font-bold text-primary">SpeakAI@123</span>
+                重置用户 <span className="font-medium">{userToReset?.phone || userToReset?.display_name}</span> 的密码
               </DialogDescription>
             </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">新密码</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="newPassword"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setPasswordError('');
+                    }}
+                    placeholder="请输入新密码"
+                    className={passwordError ? 'border-destructive' : ''}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={generateRandomPassword}
+                    title="生成随机密码"
+                  >
+                    <Shuffle className="h-4 w-4" />
+                  </Button>
+                </div>
+                {passwordError && (
+                  <p className="text-sm text-destructive">{passwordError}</p>
+                )}
+                <p className="text-xs text-muted-foreground">密码长度至少6位</p>
+              </div>
+            </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setResetDialogOpen(false)}>取消</Button>
-              <Button variant="destructive" onClick={confirmReset} disabled={resetPasswordMutation.isPending}>
+              <Button onClick={confirmReset} disabled={resetPasswordMutation.isPending}>
                 {resetPasswordMutation.isPending ? '重置中...' : '确认重置'}
               </Button>
             </DialogFooter>
