@@ -27,7 +27,10 @@ export const Header = () => {
   };
 
   return (
-    <header className="glass sticky top-0 z-50 border-b border-border/30">
+    <header
+      className="glass sticky top-0 z-50 border-b border-border/30"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-md">
